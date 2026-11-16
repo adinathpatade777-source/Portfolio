@@ -16,7 +16,12 @@ app.set("trust proxy", true);
 // Password protection. Required when deployed so strangers can't spend your API credits.
 // The webhook (token-protected) and Google's OAuth callback (state-checked) are exempt.
 const APP_PASSWORD = process.env.APP_PASSWORD || "";
-const LOCKED = process.env.NODE_ENV === "production" && !APP_PASSWORD;
+// Without API keys or Google set up there is nothing to spend or leak, so the no-key
+// copy-and-paste mode may run without a password. Add any key and a password becomes required.
+const HAS_SECRETS = Boolean(
+  process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.GOOGLE_CLIENT_ID,
+);
+const LOCKED = process.env.NODE_ENV === "production" && !APP_PASSWORD && HAS_SECRETS;
 if (LOCKED) console.warn("APP_PASSWORD is not set; the app is locked until it is.");
 app.use((req, res, next) => {
   if (req.path === "/healthz") return res.send("ok");
