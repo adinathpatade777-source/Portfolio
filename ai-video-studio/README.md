@@ -32,6 +32,26 @@ npm start              # http://localhost:3000
 
 Then click **Connect Google** in the app. It only asks for the `drive.file` scope (files this app creates).
 
+## Deploy online (Render, free)
+
+Gives you a link that works from any device, including your phone.
+
+1. Sign in at [render.com](https://render.com) with GitHub.
+2. **New → Blueprint**, pick this repository and the `claude/google-vids-integration-tetlct` branch (or `main` once merged). Render reads `render.yaml`.
+3. Fill in the values it asks for:
+   - `APP_PASSWORD`: the password you'll type to open the app (any username works).
+   - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`.
+   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+   - `GOOGLE_REDIRECT_URI`: `https://<your-app>.onrender.com/auth/google/callback`. Add that same URL to your Google OAuth client's *Authorized redirect URIs*.
+4. Click **Apply**. When it finishes, open `https://<your-app>.onrender.com`.
+
+`WEBHOOK_TOKEN` is generated for you; find it under the service's **Environment** tab.
+
+**Free-plan limits:** the app sleeps after ~15 minutes idle (the first visit takes ~1 minute to wake up),
+so cron schedules don't fire while it's asleep, and saved workflows, run history and the Google
+connection are wiped whenever it restarts or redeploys. To keep them, switch to a paid plan, add a
+disk mounted at `/var/data`, and set `DATA_DIR=/var/data`. Webhooks wake the app, so they work on free.
+
 ## Automating
 
 **Schedule:** put a cron expression in a workflow's *Schedule* field (e.g. `0 9 * * 1` = Mondays at 9:00) and save. The server must stay running.

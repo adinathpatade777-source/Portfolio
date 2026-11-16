@@ -1,5 +1,6 @@
 import "dotenv/config";
 import path from "node:path";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import cron from "node-cron";
@@ -10,6 +11,26 @@ import { runWorkflow } from "./lib/pipeline.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+app.set("trust proxy", true);
+
+// Password protection. Required when deployed so strangers can't spend your API credits.
+// The webhook (token-protected) and Google's OAuth callback (state-checked) are exempt.
+const APP_PASSWORD = process.env.APP_PASSWORD || "";
+if (process.env.NODE_ENV === "production" && !APP_PASSWORD) {
+  console.error("APP_PASSWORD must be set in production. Refusing to start.");
+  process.exit(1);
+}
+app.use((req, res, next) => {
+  if (req.path === "/healthz") return res.send("ok");
+  if (!APP_PASSWORD || req.path.startsWith("/api/hooks/") || req.path === "/auth/google/callback") return next();
+  const [scheme, encoded] = (req.get("authorization") || "").split(" ");
+  const password = scheme === "Basic" && encoded ? Buffer.from(encoded, "base64").toString().split(":").slice(1).join(":") : "";
+  const a = Buffer.from(password);
+  const b = Buffer.from(APP_PASSWORD);
+  if (a.length === b.length && crypto.timingSafeEqual(a, b)) return next();
+  res.set("WWW-Authenticate", 'Basic realm="AI Video Studio"').status(401).send("Password required.");
+});
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(here, "public")));
 

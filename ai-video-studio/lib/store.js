@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-export const DATA_DIR = path.join(here, "..", "data");
+export const DATA_DIR = process.env.DATA_DIR || path.join(here, "..", "data");
 const WORKFLOWS = path.join(DATA_DIR, "workflows.json");
 const RUNS = path.join(DATA_DIR, "runs.json");
 const MAX_RUNS = 100;
