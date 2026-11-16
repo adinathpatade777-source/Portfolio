@@ -16,12 +16,19 @@ app.set("trust proxy", true);
 // Password protection. Required when deployed so strangers can't spend your API credits.
 // The webhook (token-protected) and Google's OAuth callback (state-checked) are exempt.
 const APP_PASSWORD = process.env.APP_PASSWORD || "";
-if (process.env.NODE_ENV === "production" && !APP_PASSWORD) {
-  console.error("APP_PASSWORD must be set in production. Refusing to start.");
-  process.exit(1);
-}
+const LOCKED = process.env.NODE_ENV === "production" && !APP_PASSWORD;
+if (LOCKED) console.warn("APP_PASSWORD is not set; the app is locked until it is.");
 app.use((req, res, next) => {
   if (req.path === "/healthz") return res.send("ok");
+  if (LOCKED) {
+    // Stay up (so the deploy succeeds) but refuse to do anything until a password is set.
+    return res.status(503).type("html").send(
+      `<body style="font-family:system-ui;background:#0f1117;color:#e7e9ef;padding:24px;line-height:1.5">
+       <h2>Almost there: set a password</h2>
+       <p>In Render, open <b>ai-video-studio → Environment</b>, add <code>APP_PASSWORD</code> with a password
+       of your choice, and tap <b>Save</b>. The app restarts in about a minute; then reload this page.</p></body>`,
+    );
+  }
   if (!APP_PASSWORD || req.path.startsWith("/api/hooks/") || req.path === "/auth/google/callback") return next();
   const [scheme, encoded] = (req.get("authorization") || "").split(" ");
   const password = scheme === "Basic" && encoded ? Buffer.from(encoded, "base64").toString().split(":").slice(1).join(":") : "";
