@@ -27,6 +27,84 @@ async function writeJson(file, value) {
 
 export const newId = () => crypto.randomUUID().slice(0, 8);
 
+
+// Ready-made workflows for an "AI tools for everyday life" channel.
+function channelStep(id, name, provider, system, prompt, extra = {}) {
+  return { id, name, provider, model: provider === "claude" ? "claude-opus-5-5" : "", system, prompt, ...extra };
+}
+
+const RESEARCH_PROMPT =
+  "Video topic: {{topic}}\nChannel: faceless YouTube channel about free AI tools for everyday life " +
+  "(students, workers, people who want to save time or earn money).\n\n" +
+  "Give me, briefly:\n1. The exact viewer this is for and the problem they have.\n" +
+  "2. The specific AI tools to show (real, currently available, say which are free).\n" +
+  "3. 3-5 key points, each with one concrete example or step.\n" +
+  "4. Three scroll-stopping hook lines for the first 2 seconds.\n" +
+  "5. One honest limitation or warning about the tools, so the video stays trustworthy.";
+
+const PACKAGING_PROMPT =
+  "Video topic: {{topic}}\nLanguage: {{language}}\n\nResearch:\n{{step:Research}}\n\n" +
+  "Write the YouTube packaging in {{language}}:\n" +
+  "TITLES: 5 options, under 60 characters, curiosity-driven but not misleading.\n" +
+  "DESCRIPTION: 3 short lines summarising the video, then 'Tools mentioned:' with each tool on its own line " +
+  "followed by [your link], then a one-line call to subscribe.\n" +
+  "HASHTAGS: 8-10 relevant hashtags.\nPINNED COMMENT: one question that invites replies.";
+
+export function channelTemplates() {
+  return [
+    {
+      id: "ai-tools-short",
+      name: "AI Tools channel: Short (45-60s)",
+      topic: "3 free AI tools every student should use",
+      language: "Hinglish (Hindi written in English letters)",
+      schedule: "",
+      exportToVids: true,
+      steps: [
+        channelStep("ai-short-research", "Research", "openai", "You are a YouTube strategist for a fast-growing AI tools channel.", RESEARCH_PROMPT),
+        channelStep("ai-short-packaging", "Title & description", "openai", "You write YouTube titles and descriptions that get clicks honestly.", PACKAGING_PROMPT),
+        channelStep(
+          "ai-short-script",
+          "Script for Vids",
+          "claude",
+          "You write vertical YouTube Shorts scripts that Google Vids 'Help me create' can turn into a video.",
+          "Video topic: {{topic}}\nLanguage: {{language}}\n\nResearch:\n{{step:Research}}\n\nChosen packaging:\n{{step:Title & description}}\n\n" +
+            "Write a 45-60 second vertical (9:16) YouTube Short in {{language}}. Start with the best hook from the research, " +
+            "spoken in the first 2 seconds. Then 4-6 numbered scenes, each with: Duration, On-screen text (max 6 words), " +
+            "Narration, and Visuals (prefer screen recordings of the tool being used). Add a personal tip or opinion in one scene. " +
+            "End with a 1-line call to follow for more AI tools. Plain text only, no tables.",
+          { effort: "medium" },
+        ),
+      ],
+    },
+    {
+      id: "ai-tools-long",
+      name: "AI Tools channel: Long video (5-8 min)",
+      topic: "How to use AI to save 5 hours every week",
+      language: "Hinglish (Hindi written in English letters)",
+      schedule: "",
+      exportToVids: true,
+      steps: [
+        channelStep("ai-long-research", "Research", "openai", "You are a YouTube strategist for a fast-growing AI tools channel.", RESEARCH_PROMPT),
+        channelStep("ai-long-packaging", "Title & description", "openai", "You write YouTube titles and descriptions that get clicks honestly.",
+          PACKAGING_PROMPT + "\nCHAPTERS: timestamps (0:00 Intro, ...) matching a 5-8 minute video."),
+        channelStep(
+          "ai-long-script",
+          "Script for Vids",
+          "claude",
+          "You write YouTube video scripts that Google Vids 'Help me create' can turn into a video.",
+          "Video topic: {{topic}}\nLanguage: {{language}}\n\nResearch:\n{{step:Research}}\n\nChosen packaging:\n{{step:Title & description}}\n\n" +
+            "Write a 5-8 minute landscape (16:9) YouTube video script in {{language}}. Open with a hook and a promise of " +
+            "what the viewer will get (first 15 seconds). Then numbered scenes that follow the chapters, each with: Duration, " +
+            "On-screen text (max 8 words), Narration, and Visuals (screen recordings of each tool, step by step). " +
+            "Include one honest limitation, one personal tip, and a mid-video reminder to subscribe. End with a recap and " +
+            "a question for the comments. Plain text only, no tables.",
+          { effort: "medium" },
+        ),
+      ],
+    },
+  ];
+}
+
 export function defaultWorkflow() {
   return {
     id: newId(),
@@ -74,10 +152,19 @@ export function defaultWorkflow() {
 
 export async function listWorkflows() {
   let workflows = await readJson(WORKFLOWS, null);
+  let changed = false;
   if (!workflows) {
     workflows = [defaultWorkflow()];
-    await writeJson(WORKFLOWS, workflows);
+    changed = true;
   }
+  // Add any built-in channel templates that are missing (e.g. after an update).
+  for (const template of channelTemplates().reverse()) {
+    if (!workflows.some((w) => w.id === template.id)) {
+      workflows.unshift(template);
+      changed = true;
+    }
+  }
+  if (changed) await writeJson(WORKFLOWS, workflows);
   return workflows;
 }
 

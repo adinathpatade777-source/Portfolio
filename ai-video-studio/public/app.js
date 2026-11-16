@@ -59,6 +59,7 @@ function select(wf) {
   current = structuredClone(wf);
   $("#wf-name").value = current.name || "";
   $("#wf-topic").value = current.topic || "";
+  $("#wf-language").value = current.language || "English";
   $("#wf-schedule").value = current.schedule || "";
   $("#wf-export").checked = Boolean(current.exportToVids);
   $("#wf-webhook").value = `${location.origin}/api/hooks/${current.id}?token=YOUR_WEBHOOK_TOKEN`;
@@ -69,6 +70,7 @@ function select(wf) {
 function readEditor() {
   current.name = $("#wf-name").value.trim() || "Untitled";
   current.topic = $("#wf-topic").value;
+  current.language = $("#wf-language").value.trim() || "English";
   current.schedule = $("#wf-schedule").value.trim();
   current.exportToVids = $("#wf-export").checked;
   return current;
@@ -260,9 +262,10 @@ loadWorkflows();
 loadRuns();
 
 // ---------- No-key mode: copy & paste with your own ChatGPT / Claude accounts ----------
-function fillTemplate(template, topic, outputs) {
+function fillTemplate(template, topic, outputs, language = "English") {
   return template
     .replaceAll("{{topic}}", topic)
+    .replaceAll("{{language}}", language || "English")
     .replaceAll("{{previous}}", outputs.at(-1)?.output ?? "")
     .replace(/\{\{step:([^}]+)\}\}/g, (_, key) => {
       const wanted = key.trim().toLowerCase();
@@ -373,7 +376,7 @@ $("#run-manual").onclick = async () => {
   const outputs = [];
   try {
     for (const [i, step] of wf.steps.entries()) {
-      const text = fillTemplate(step.prompt || "", wf.topic, outputs);
+      const text = fillTemplate(step.prompt || "", wf.topic, outputs, wf.language);
       const output = await manualStep(step, i, wf.steps.length, text);
       outputs.push({ id: step.id, name: step.name, output });
     }

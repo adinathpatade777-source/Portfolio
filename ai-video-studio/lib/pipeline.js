@@ -6,11 +6,13 @@ import { newId, saveRun } from "./store.js";
 
 // Supported placeholders:
 //   {{topic}}        the run's topic
+//   {{language}}     the workflow's language (default English)
 //   {{previous}}     output of the step just before
 //   {{step:Name}}    output of the step with that name (or id)
-function fillTemplate(template, topic, outputs) {
+function fillTemplate(template, topic, outputs, language = "English") {
   return template
     .replaceAll("{{topic}}", topic)
+    .replaceAll("{{language}}", language || "English")
     .replaceAll("{{previous}}", outputs.at(-1)?.output ?? "")
     .replace(/\{\{step:([^}]+)\}\}/g, (_, key) => {
       const wanted = key.trim().toLowerCase();
@@ -37,7 +39,7 @@ export async function runWorkflow(workflow, { topic, trigger = "manual" } = {}, 
     if (!workflow.steps?.length) throw new Error("This workflow has no steps.");
 
     for (const step of workflow.steps) {
-      const prompt = fillTemplate(step.prompt || "", run.topic, run.steps);
+      const prompt = fillTemplate(step.prompt || "", run.topic, run.steps, workflow.language);
       emit({ type: "step-start", stepId: step.id, name: step.name, provider: step.provider });
       const output = await generate(step, prompt, (delta) => emit({ type: "delta", stepId: step.id, delta }));
       run.steps.push({ id: step.id, name: step.name, provider: step.provider, output });
