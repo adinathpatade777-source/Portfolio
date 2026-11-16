@@ -107,3 +107,9 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 .vids-box { border: 1px solid var(--google); background: rgba(66, 133, 244, .08); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
 .vids-box ol { margin: 0; padding-left: 18px; color: var(--muted); }
 .error-box { border: 1px solid var(--danger); background: rgba(229, 72, 77, .08); border-radius: var(--radius); padding: 12px; }
+
+.manual { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.manual.claude { border-left: 4px solid var(--claude); }
+.manual.openai { border-left: 4px solid var(--openai); }
+.manual pre { margin: 0; padding: 10px; background: var(--panel-2); border-radius: 7px; white-space: pre-wrap; word-break: break-word; max-height: 180px; overflow: auto; font: 12px/1.5 ui-monospace, Menlo, monospace; }
+.manual .row .btn { flex: 1 1 auto; text-align: center; }

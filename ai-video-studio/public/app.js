@@ -258,3 +258,127 @@ function showRun(run) {
 loadStatus();
 loadWorkflows();
 loadRuns();
+
+// ---------- No-key mode: copy & paste with your own ChatGPT / Claude accounts ----------
+function fillTemplate(template, topic, outputs) {
+  return template
+    .replaceAll("{{topic}}", topic)
+    .replaceAll("{{previous}}", outputs.at(-1)?.output ?? "")
+    .replace(/\{\{step:([^}]+)\}\}/g, (_, key) => {
+      const wanted = key.trim().toLowerCase();
+      const hit = outputs.find((o) => o.id === key.trim() || (o.name || "").toLowerCase() === wanted);
+      return hit?.output ?? "";
+    });
+}
+
+function chatUrl(provider, prompt) {
+  const base = provider === "claude" ? "https://claude.ai/new" : "https://chatgpt.com/";
+  const q = encodeURIComponent(prompt);
+  return q.length < 6000 ? `${base}?q=${q}` : base; // very long prompts: paste from clipboard
+}
+
+async function copyText(text, button) {
+  try {
+    await navigator.clipboard.writeText(text);
+    const old = button.textContent;
+    button.textContent = "Copied ✓";
+    setTimeout(() => (button.textContent = old), 1500);
+  } catch {
+    prompt("Copy this text:", text);
+  }
+}
+
+function el(tag, attrs = {}, text) {
+  const node = document.createElement(tag);
+  Object.assign(node, attrs);
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function manualStep(step, index, total, promptText) {
+  return new Promise((resolve) => {
+    const who = step.provider === "claude" ? "Claude" : "ChatGPT";
+    const box = el("div", { className: `manual ${step.provider}` });
+    box.append(el("strong", {}, `Step ${index + 1} of ${total}: ${step.name} (${who})`));
+    const full = step.system ? `${step.system}\n\n${promptText}` : promptText;
+    box.append(el("pre", {}, full));
+
+    const row = el("div", { className: "row" });
+    const copyBtn = el("button", { className: "btn small" }, "Copy prompt");
+    copyBtn.onclick = () => copyText(full, copyBtn);
+    const open = el("a", { className: "btn small primary", href: chatUrl(step.provider, full), target: "_blank", rel: "noopener" }, `Open ${who}`);
+    open.onclick = () => navigator.clipboard?.writeText(full).catch(() => {});
+    row.append(copyBtn, open);
+    box.append(row);
+
+    box.append(el("p", { className: "hint" }, `Send it in ${who}, copy the whole reply, and paste it below.`));
+    const answer = el("textarea", { rows: 6, placeholder: `Paste ${who}'s reply here` });
+    const next = el("button", { className: "btn primary" }, index + 1 < total ? "Next step →" : "Finish");
+    next.onclick = () => {
+      if (!answer.value.trim()) return answer.focus();
+      box.querySelectorAll("button, a, textarea").forEach((n) => (n.disabled = true));
+      answer.readOnly = true;
+      next.remove();
+      resolve(answer.value.trim());
+    };
+    box.append(answer, next);
+    $("#output").append(box);
+    box.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
+function manualFinish(topic, storyboard) {
+  const box = el("div", { className: "vids-box" });
+  box.append(el("strong", {}, "Ready for Google Vids"));
+  const steps = el("ol");
+  steps.append(
+    el("li", {}, "Tap Copy storyboard."),
+    el("li", {}, "Open Google Vids and choose Help me create."),
+    el("li", {}, "Paste the storyboard as your prompt and generate."),
+  );
+  box.append(steps);
+  const row = el("div", { className: "row" });
+  const copyBtn = el("button", { className: "btn small primary" }, "Copy storyboard");
+  copyBtn.onclick = () => copyText(storyboard, copyBtn);
+  const vids = el("a", { className: "btn small", href: "https://vids.google.com/", target: "_blank", rel: "noopener" }, "Open Google Vids");
+  row.append(copyBtn, vids);
+  if ($("#chip-google").classList.contains("ok")) {
+    const save = el("button", { className: "btn small" }, "Save as Google Doc");
+    save.onclick = async () => {
+      save.disabled = true;
+      try {
+        const r = await api("/api/vids/doc", { method: "POST", body: JSON.stringify({ title: `${topic} - Vids storyboard`, text: storyboard }) });
+        const link = el("a", { className: "btn small", href: r.docUrl, target: "_blank", rel: "noopener" }, "Open storyboard Doc");
+        save.replaceWith(link);
+      } catch (err) {
+        alert(err.message);
+        save.disabled = false;
+      }
+    };
+    row.append(save);
+  }
+  box.append(row);
+  $("#output").append(box);
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+$("#run-manual").onclick = async () => {
+  const wf = readEditor();
+  if (!wf.topic.trim()) return alert("Type a topic first.");
+  if (!wf.steps.length) return alert("Add at least one step.");
+  const button = $("#run-manual");
+  button.disabled = true;
+  $("#output").innerHTML = "";
+  $("#output").append(el("p", { className: "hint" }, "No-key mode: each step opens ChatGPT or Claude with the prompt filled in. Paste the reply back here."));
+  const outputs = [];
+  try {
+    for (const [i, step] of wf.steps.entries()) {
+      const text = fillTemplate(step.prompt || "", wf.topic, outputs);
+      const output = await manualStep(step, i, wf.steps.length, text);
+      outputs.push({ id: step.id, name: step.name, output });
+    }
+    manualFinish(wf.topic, outputs.at(-1).output);
+  } finally {
+    button.disabled = false;
+  }
+};

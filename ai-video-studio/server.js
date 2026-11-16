@@ -116,6 +116,18 @@ app.delete("/api/workflows/:id", async (req, res) => {
 app.get("/api/workflows/new", (_req, res) => res.json(store.defaultWorkflow()));
 
 // ---------- Runs ----------
+// Save text as a Google Doc (used by the no-key mode's final step).
+app.post("/api/vids/doc", async (req, res) => {
+  try {
+    const { title, text } = req.body || {};
+    if (!text) return res.status(400).json({ error: "text is required" });
+    const doc = await google.createDoc(title || "Vids storyboard", text);
+    res.json({ docUrl: doc.url, vidsUrl: google.VIDS_URL });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 app.get("/api/runs", async (_req, res) => res.json(await store.listRuns()));
 
 // Runs a workflow and streams progress as newline-delimited JSON.
