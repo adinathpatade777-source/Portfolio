@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Video Studio</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">▶</span>
+      <div>
+        <h1>AI Video Studio</h1>
+        <p>ChatGPT + Claude → Google Vids</p>
+      </div>
+    </div>
+    <div class="connections">
+      <a class="btn small" href="/styles-library.html">🎨 Styles</a>
+      <a class="btn small" href="/animate.html">🎬 Animator</a>
+      <span class="chip" id="chip-openai">ChatGPT</span>
+      <span class="chip" id="chip-claude">Claude</span>
+      <span class="chip" id="chip-google">Google Vids</span>
+      <a class="btn small" id="google-connect" href="/auth/google">Connect Google</a>
+      <button class="btn small ghost hidden" id="google-disconnect">Disconnect</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <h2>Workflows</h2>
+        <button class="btn small" id="new-workflow">+ New</button>
+      </div>
+      <ul id="workflow-list" class="workflow-list"></ul>
+      <div class="sidebar-head"><h2>Recent runs</h2></div>
+      <ul id="run-list" class="run-list"></ul>
+    </aside>
+
+    <section class="editor">
+      <div class="card">
+        <div class="row">
+          <label class="grow">Workflow name<input id="wf-name" /></label>
+          <label class="toggle"><input type="checkbox" id="wf-export" /> Send result to Google Vids</label>
+        </div>
+        <label>Topic<textarea id="wf-topic" rows="2" placeholder="What should the video be about?"></textarea></label>
+        <label>Language
+          <input id="wf-language" list="language-options" placeholder="English" />
+          <datalist id="language-options">
+            <option value="English"></option>
+            <option value="Hindi"></option>
+            <option value="Hinglish (Hindi written in English letters)"></option>
+            <option value="Marathi"></option>
+          </datalist>
+        </label>
+        <div class="row">
+          <label class="grow">Schedule (cron, optional)
+            <input id="wf-schedule" placeholder="e.g. 0 9 * * 1 = every Monday 9:00" />
+          </label>
+          <label class="grow">Webhook URL
+            <input id="wf-webhook" readonly />
+          </label>
+        </div>
+      </div>
+
+      <div class="steps-head">
+        <h2>Steps</h2>
+        <p class="hint">Use <code>{{topic}}</code>, <code>{{language}}</code>, <code>{{previous}}</code> or <code>{{step:Step name}}</code> in prompts.</p>
+      </div>
+      <ol id="steps" class="steps"></ol>
+      <div class="add-step">
+        <button class="btn ghost" data-add="openai">+ ChatGPT step</button>
+        <button class="btn ghost" data-add="claude">+ Claude step</button>
+      </div>
+
+      <div class="actions">
+        <button class="btn ghost danger" id="delete-workflow">Delete</button>
+        <span class="spacer"></span>
+        <span id="save-state" class="hint"></span>
+        <button class="btn ghost" id="save-workflow">Save</button>
+        <button class="btn" id="run-manual" title="Use your own ChatGPT and Claude accounts by copy and paste">Run without API keys</button>
+        <button class="btn primary" id="run-workflow">▶ Run workflow</button>
+      </div>
+    </section>
+
+    <section class="output">
+      <h2>Output</h2>
+      <div id="output" class="output-body"><p class="hint">Run a workflow to see each step stream in here.</p></div>
+    </section>
+  </main>
+
+  <template id="step-template">
+    <li class="step card">
+      <div class="step-top">
+        <span class="step-num"></span>
+        <input class="step-name" placeholder="Step name" />
+        <select class="step-provider">
+          <option value="openai">ChatGPT</option>
+          <option value="claude">Claude</option>
+        </select>
+        <input class="step-model" placeholder="model (optional)" />
+        <div class="step-buttons">
+          <button class="icon" data-move="-1" title="Move up">↑</button>
+          <button class="icon" data-move="1" title="Move down">↓</button>
+          <button class="icon" data-remove title="Remove">✕</button>
+        </div>
+      </div>
+      <label>System instructions<input class="step-system" /></label>
+      <label>Prompt<textarea class="step-prompt" rows="4"></textarea></label>
+    </li>
+  </template>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
