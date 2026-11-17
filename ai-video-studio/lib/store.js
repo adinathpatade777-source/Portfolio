@@ -50,6 +50,25 @@ const PACKAGING_PROMPT =
   "followed by [your link], then a one-line call to subscribe.\n" +
   "HASHTAGS: 8-10 relevant hashtags.\nPINNED COMMENT: one question that invites replies.";
 
+
+const ANIMATION_PROMPT =
+  "Video topic: {{topic}}\nLanguage for all on-screen words: {{language}}\n\nResearch:\n{{step:Research}}\n\n" +
+  "Storyboard a 20-40 second flat 2D motion-graphics video (solid colour backgrounds, simple icons, pop-in " +
+  "animation, very few words per scene). Reply with ONLY a JSON object, no explanation, in exactly this shape:\n" +
+  '{"format":"portrait","palette":"purple","scenes":[{"visual":"title","duration":3,"headline":"...","subtext":"...","icons":["..."],"items":["..."],"value":"...","caption":"...","button":"..."}]}\n\n' +
+  "Rules:\n" +
+  "- format: portrait (Shorts/Reels), landscape or square.\n" +
+  "- palette: purple, clean, warm, night or sky. Pick the one that suits the topic.\n" +
+  "- 6-9 scenes, duration 2.5-4 seconds each.\n" +
+  "- visual must be one of: title, character, icons, phone, laptop, bar-chart, stat, checklist, timeline, network, cta. " +
+  "Use a variety; never the same visual twice in a row. First scene is a strong hook (title or stat); last scene is cta.\n" +
+  "- headline: max 6 words. subtext and caption: optional, max 8 words.\n" +
+  "- icons: 1-4 simple words from: coin, rupee, check, phone, laptop, doc, idea, gear, chart, heart, star, clock, " +
+  "wallet, mail, user, lock, calendar, search, play, home, food, gift, rocket, ai.\n" +
+  "- items: for checklist and timeline (2-4 short labels); for bar-chart, 4-7 numbers.\n" +
+  "- value: only for stat, e.g. \"5 hrs/week\" or \"90%\". button: only for cta.\n" +
+  "- Leave out fields a scene doesn't use. Keep facts accurate.";
+
 export function channelTemplates() {
   return [
     {
@@ -98,6 +117,25 @@ export function channelTemplates() {
             "On-screen text (max 8 words), Narration, and Visuals (screen recordings of each tool, step by step). " +
             "Include one honest limitation, one personal tip, and a mid-video reminder to subscribe. End with a recap and " +
             "a question for the comments. Plain text only, no tables.",
+          { effort: "medium" },
+        ),
+      ],
+    },
+    {
+      id: "flat-animation",
+      name: "Flat animation video (motion graphics)",
+      topic: "3 free AI tools every student should use",
+      language: "Hinglish (Hindi written in English letters)",
+      schedule: "",
+      exportToVids: false,
+      steps: [
+        channelStep("anim-research", "Research", "openai", "You are a YouTube strategist for a fast-growing AI tools channel.", RESEARCH_PROMPT),
+        channelStep(
+          "anim-script",
+          "Animation script",
+          "claude",
+          "You storyboard short flat 2D motion-graphics explainer videos and output only valid JSON.",
+          ANIMATION_PROMPT,
           { effort: "medium" },
         ),
       ],

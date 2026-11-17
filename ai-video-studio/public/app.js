@@ -330,7 +330,23 @@ function manualStep(step, index, total, promptText) {
   });
 }
 
+function looksLikeAnimation(text) {
+  return /"scenes"\s*:/.test(text || "");
+}
+
+function animatorBox(text) {
+  const box = el("div", { className: "vids-box" });
+  box.append(el("strong", {}, "Animation script ready"));
+  box.append(el("p", { className: "hint" }, "Open the Animator to preview it and download the video."));
+  const open = el("a", { className: "btn primary", href: "/animate.html" }, "🎬 Open in Animator");
+  open.onclick = () => { try { localStorage.setItem("animator-script", text); } catch {} };
+  box.append(open);
+  $("#output").append(box);
+  box.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function manualFinish(topic, storyboard) {
+  if (looksLikeAnimation(storyboard)) return animatorBox(storyboard);
   const box = el("div", { className: "vids-box" });
   box.append(el("strong", {}, "Ready for Google Vids"));
   const steps = el("ol");
