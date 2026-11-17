@@ -61,6 +61,7 @@
         </div>
         <p id="status" class="hint"></p>
       </div>
+      <div id="sound"></div>
     </section>
 
     <section class="output">
@@ -73,26 +74,75 @@
       <div class="row">
         <button class="btn primary grow" id="record">⬇ Record &amp; download video</button>
       </div>
-      <p class="hint">Recording plays the whole video once in real time. Keep this tab open until the download starts.
-        Add music or a voiceover afterwards in Google Vids, CapCut or YouTube.</p>
+      <p class="hint">Recording plays the whole video once in real time, with sound. Keep this tab open and the screen on
+        until the download starts.</p>
     </section>
   </main>
 
   <script type="module">
     import { parseScript, renderFrame, totalDuration, canvasSize, SAMPLE_SCRIPT } from "./animator.js";
+    import { createSoundPanel, playBuffer, downloadBlob } from "./sound-panel.js";
+    import { audioContext } from "./sound.js";
 
     const $ = (s) => document.querySelector(s);
     const canvas = $("#canvas");
     const ctx = canvas.getContext("2d");
-    let script = null;
+    let base = null;      // script as written
+    let script = null;    // script with durations fitted to the voiceover
     let duration = 0;
     let time = 0;
     let playing = false;
     let last = 0;
+    let soundBuf = null;  // cached soundtrack
+    let stopAudio = () => {};
+
+    const sound = createSoundPanel($("#sound"), {
+      getScenes: () => base?.scenes || [],
+      onChange: () => { soundBuf = null; fit(); },
+    });
 
     function status(msg, isError = false) {
       $("#status").textContent = msg;
       $("#status").className = isError ? "hint err" : "hint";
+    }
+
+    // Sound effects that follow the animation's own timing.
+    function sfxEvents(sc) {
+      const ev = [];
+      let s = 0;
+      sc.scenes.forEach((scene, i) => {
+        if (i > 0) ev.push({ t: Math.max(0, s - 0.2), type: "whoosh" });
+        ev.push({ t: s + 0.15, type: "pop", gain: 0.7 });
+        const items = scene.items || [];
+        const icons = scene.icons || [];
+        switch (scene.visual) {
+          case "checklist": items.slice(0, 4).forEach((_, k) => ev.push({ t: s + 0.45 + k * 0.45, type: "click" })); break;
+          case "timeline": { const n = Math.min(4, items.length || 4); for (let k = 0; k < n; k++) ev.push({ t: s + 0.2 + (k / Math.max(1, n - 1)) * 1.2, type: "pop", gain: 0.6 }); break; }
+          case "stat": ev.push({ t: s + 1.5, type: "ding" }); break;
+          case "cta": ev.push({ t: s + 0.4, type: "ding" }); break;
+          case "bar-chart": for (let k = 0; k < 6; k++) ev.push({ t: s + 0.2 + k * 0.12, type: "tick", gain: 0.7 }); ev.push({ t: s + 1.6, type: "ding", gain: 0.6 }); break;
+          case "icons": icons.slice(0, 4).forEach((_, k) => ev.push({ t: s + 0.1 + k * 0.25, type: "pop", gain: 0.6 })); break;
+          case "character": ev.push({ t: s + 0.6, type: "pop", gain: 0.6 }); break;
+          case "phone": ev.push({ t: s + 0.7, type: "click" }); break;
+          case "network": ev.push({ t: s + 0.6, type: "pop", gain: 0.5 }); break;
+        }
+        s += scene.duration;
+      });
+      return ev;
+    }
+
+    // Stretch scene lengths so the whole voiceover fits (never shorter than written).
+    function fit() {
+      if (!base) return;
+      const written = totalDuration(base);
+      const need = sound.fitToVoice() ? sound.voiceSeconds() + 0.9 : 0;
+      const k = need > written ? need / written : 1;
+      script = { ...base, scenes: base.scenes.map((sc) => ({ ...sc, duration: sc.duration * k })) };
+      duration = totalDuration(script);
+      time = Math.min(time, duration);
+      soundBuf = null;
+      draw();
+      status(`${script.scenes.length} scenes, ${duration.toFixed(1)} seconds${k > 1 ? " (stretched to fit the voiceover)" : ""}.`);
     }
 
     function apply() {
@@ -100,14 +150,13 @@
         const parsed = parseScript($("#script").value);
         if ($("#format").value) parsed.format = $("#format").value;
         if ($("#palette").value) parsed.palette = $("#palette").value;
-        script = parsed;
-        const [w, h] = canvasSize(script);
+        base = parsed;
+        const [w, h] = canvasSize(base);
         canvas.width = w;
         canvas.height = h;
-        duration = totalDuration(script);
-        time = Math.min(time, duration);
-        draw();
-        status(`${script.scenes.length} scenes, ${duration.toFixed(1)} seconds.`);
+        const narration = base.scenes.map((s) => s.narration).filter(Boolean).join("\n");
+        if (narration) sound.setText(narration);
+        fit();
         try { localStorage.setItem("animator-script", $("#script").value); } catch {}
       } catch (err) {
         status("Could not read the script: " + err.message, true);
@@ -121,11 +170,24 @@
       $("#time").textContent = `${time.toFixed(1)} / ${duration.toFixed(1)}s`;
     }
 
+    function soundtrack() {
+      if (!sound.hasSound()) return null;
+      soundBuf ??= sound.audioBuffer(duration, sfxEvents(script));
+      return soundBuf;
+    }
+
+    function stop() {
+      playing = false;
+      stopAudio();
+      stopAudio = () => {};
+      $("#play").textContent = "▶ Play";
+    }
+
     function loop(now) {
       if (!playing) return;
       time += (now - last) / 1000;
       last = now;
-      if (time >= duration) { time = duration; playing = false; $("#play").textContent = "▶ Play"; }
+      if (time >= duration) { time = duration; stop(); }
       draw();
       if (playing) requestAnimationFrame(loop);
     }
@@ -133,56 +195,69 @@
     function play() {
       if (!script) return;
       if (time >= duration) time = 0;
+      audioContext();
+      const buf = soundtrack();
+      if (buf) stopAudio = playBuffer(buf, time);
       playing = true;
       last = performance.now();
       $("#play").textContent = "❚❚ Pause";
       requestAnimationFrame(loop);
     }
 
-    $("#play").onclick = () => {
-      if (playing) { playing = false; $("#play").textContent = "▶ Play"; } else play();
-    };
-    $("#scrub").oninput = () => { playing = false; $("#play").textContent = "▶ Play"; time = ($("#scrub").value / 1000) * duration; draw(); };
+    $("#play").onclick = () => (playing ? stop() : play());
+    $("#scrub").oninput = () => { stop(); time = ($("#scrub").value / 1000) * duration; draw(); };
     $("#load").onclick = apply;
     $("#format").onchange = apply;
     $("#palette").onchange = apply;
     $("#sample").onclick = () => { $("#script").value = JSON.stringify(SAMPLE_SCRIPT, null, 2); apply(); };
+    sound.onWavDownload = () => {
+      if (!script) return;
+      downloadBlob(new Blob([sound.wav(duration, sfxEvents(script))], { type: "audio/wav" }), `soundtrack-${Date.now()}.wav`);
+    };
 
-    function pickMime() {
-      const types = ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"];
+    function pickMime(withAudio) {
+      const types = withAudio
+        ? ["video/mp4;codecs=avc1,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm"]
+        : ["video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9", "video/webm"];
       return types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
     }
 
     $("#record").onclick = () => {
       if (!script) return;
       if (!window.MediaRecorder || !canvas.captureStream) return status("This browser can't record video. Try Chrome.", true);
-      const mime = pickMime();
+      stop();
+      const actx = audioContext();
+      const buf = soundtrack();
       const stream = canvas.captureStream(30);
-      const rec = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: 8_000_000 });
+      let audioDest = null;
+      if (buf) {
+        audioDest = actx.createMediaStreamDestination();
+        audioDest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
+      }
+      const mime = pickMime(Boolean(buf));
+      const rec = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 160_000 });
       const chunks = [];
       rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
       rec.onstop = () => {
         const type = rec.mimeType || mime || "video/webm";
         const ext = type.includes("mp4") ? "mp4" : "webm";
         const blob = new Blob(chunks, { type });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `animation-${Date.now()}.${ext}`;
-        a.click();
+        downloadBlob(blob, `animation-${Date.now()}.${ext}`);
         $("#record").disabled = false;
-        status(`Saved ${ext.toUpperCase()} (${(blob.size / 1e6).toFixed(1)} MB).` + (ext === "webm" ? " If your editor can't open WebM, convert it to MP4 (e.g. CapCut opens it directly)." : ""));
+        status(`Saved ${ext.toUpperCase()} (${(blob.size / 1e6).toFixed(1)} MB)${buf ? " with sound" : ""}.` + (ext === "webm" ? " If your editor can't open WebM, CapCut opens it directly." : ""));
       };
       $("#record").disabled = true;
       time = 0;
       draw();
       rec.start(250);
+      if (buf) stopAudio = playBuffer(buf, 0, audioDest);
       status("Recording… keep this tab open.");
       playing = true;
       last = performance.now();
       const tick = (now) => {
         time += (now - last) / 1000;
         last = now;
-        if (time >= duration) { time = duration; draw(); playing = false; setTimeout(() => rec.stop(), 300); return; }
+        if (time >= duration) { time = duration; draw(); playing = false; setTimeout(() => { rec.stop(); stopAudio(); }, 300); return; }
         draw();
         requestAnimationFrame(tick);
       };

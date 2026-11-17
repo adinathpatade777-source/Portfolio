@@ -55,7 +55,7 @@ const ANIMATION_PROMPT =
   "Video topic: {{topic}}\nLanguage for all on-screen words: {{language}}\n\nResearch:\n{{step:Research}}\n\n" +
   "Storyboard a 20-40 second flat 2D motion-graphics video (solid colour backgrounds, simple icons, pop-in " +
   "animation, very few words per scene). Reply with ONLY a JSON object, no explanation, in exactly this shape:\n" +
-  '{"format":"portrait","palette":"purple","scenes":[{"visual":"title","duration":3,"headline":"...","subtext":"...","icons":["..."],"items":["..."],"value":"...","caption":"...","button":"..."}]}\n\n' +
+  '{"format":"portrait","palette":"purple","scenes":[{"visual":"title","duration":3,"headline":"...","subtext":"...","icons":["..."],"items":["..."],"value":"...","caption":"...","button":"...","narration":"..."}]}\n\n' +
   "Rules:\n" +
   "- format: portrait (Shorts/Reels), landscape or square.\n" +
   "- palette: purple, clean, warm, night or sky. Pick the one that suits the topic.\n" +
@@ -67,6 +67,8 @@ const ANIMATION_PROMPT =
   "wallet, mail, user, lock, calendar, search, play, home, food, gift, rocket, ai.\n" +
   "- items: for checklist and timeline (2-4 short labels); for bar-chart, 4-7 numbers.\n" +
   "- value: only for stat, e.g. \"5 hrs/week\" or \"90%\". button: only for cta.\n" +
+  "- narration: what the voiceover says during this scene, in {{language}}, natural and spoken, max 18 words. " +
+  "Together the narration lines tell the whole story; the headline is the short on-screen version.\n" +
   "- Leave out fields a scene doesn't use. Keep facts accurate.";
 
 export function channelTemplates() {
