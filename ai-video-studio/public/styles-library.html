@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Style Library</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .lib { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filters input { flex: 1 1 200px; }
+    .filters select { flex: 0 1 220px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+    .style-card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; text-align: left; color: var(--text); padding: 0; font: inherit; }
+    .style-card:hover, .style-card:focus-visible { border-color: var(--accent); }
+    .style-card img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--panel-2); display: block; }
+    .style-card .meta { padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+    .style-card .meta b { font-size: 13px; }
+    .style-card .meta span { color: var(--muted); font-size: 11px; }
+    dialog { width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 24px); border: 1px solid var(--border); border-radius: 14px; background: var(--bg); color: var(--text); padding: 0; }
+    dialog::backdrop { background: rgba(0, 0, 0, .6); }
+    .dlg { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .dlg img { width: 100%; border-radius: 10px; }
+    .dlg h2 { font-size: 20px; text-transform: none; letter-spacing: 0; color: var(--text); }
+    .step-title { font-weight: 700; color: var(--text); margin: 4px 0 0; }
+    .player { display: flex; justify-content: center; background: #000; border-radius: 10px; overflow: hidden; }
+    .player iframe { border: 0; width: 100%; aspect-ratio: 9 / 16; max-height: 70vh; background: #000; }
+    .player iframe.landscape { aspect-ratio: 16 / 9; }
+    .player iframe.square { aspect-ratio: 1 / 1; }
+    .credit { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .credit a { color: var(--accent); }
+    .err { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">▶</span>
+      <div>
+        <h1>Style Library</h1>
+        <p>99 code-made film styles from Lemo-Opuscar</p>
+      </div>
+    </div>
+    <div class="connections">
+      <a class="btn small" href="/animate.html">🎬 Animator</a>
+      <a class="btn small" href="/">← Workflows</a>
+    </div>
+  </header>
+
+  <main class="lib">
+    <div class="filters">
+      <input id="search" placeholder="Search styles (e.g. chalk, news, map, 3D)" />
+      <select id="category"><option value="">All categories</option></select>
+    </div>
+    <p id="status" class="hint">Loading styles…</p>
+    <div id="grid" class="grid"></div>
+    <p class="credit">
+      Styles: <a href="https://github.com/lemomo-ai/lemo-opuscar" target="_blank" rel="noopener">Lemo-Opuscar by Lemomo (LemoLab)</a>.
+      Style guides: <a href="https://creativecommons.org/licenses/by-nc/4.0/" target="_blank" rel="noopener">CC BY-NC 4.0</a>, plus the author's
+      permission to use them to make your own films (commercial films included). Posters:
+      <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.
+      Guides and posters load from GitHub when you view them; this app doesn't store or change them. Films you make are yours.
+      Selling or offering this app to others with the guides built in needs a commercial licence from the author.
+    </p>
+  </main>
+
+  <dialog id="dlg">
+    <div class="dlg">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 id="d-name"></h2>
+        <button class="btn small ghost" id="d-close">✕ Close</button>
+      </div>
+      <img id="d-poster" alt="" />
+      <p id="d-line" class="hint"></p>
+      <p id="d-uses" class="hint"></p>
+      <div class="row">
+        <a class="btn small" id="d-demo" target="_blank" rel="noopener">Watch the demo film</a>
+        <a class="btn small ghost" id="d-guide" target="_blank" rel="noopener">Read the style guide</a>
+      </div>
+
+      <p class="step-title">1. Your film</p>
+      <label>Topic<textarea id="f-topic" rows="2" placeholder="e.g. 3 free AI tools every student should use"></textarea></label>
+      <div class="row">
+        <label class="grow">Format
+          <select id="f-format">
+            <option value="portrait">Portrait 9:16 (Shorts, Reels)</option>
+            <option value="landscape">Landscape 16:9 (YouTube)</option>
+            <option value="square">Square 1:1</option>
+          </select>
+        </label>
+        <label class="grow">Length
+          <select id="f-duration">
+            <option value="15">15 seconds</option>
+            <option value="30" selected>30 seconds</option>
+            <option value="45">45 seconds</option>
+            <option value="60">60 seconds</option>
+          </select>
+        </label>
+        <label class="grow">On-screen language<input id="f-language" value="English" list="langs" />
+          <datalist id="langs"><option value="English"></option><option value="Hindi"></option><option value="Hinglish (Hindi written in English letters)"></option><option value="Marathi"></option></datalist>
+        </label>
+      </div>
+      <label>Script or key points (optional)<textarea id="f-notes" rows="3" placeholder="Paste a script from a workflow, or leave empty and Claude writes one"></textarea></label>
+
+      <p class="step-title">2. Ask Claude</p>
+      <div class="row">
+        <button class="btn primary grow" id="f-build">Copy prompt &amp; open Claude</button>
+      </div>
+      <p id="f-status" class="hint"></p>
+
+      <p class="step-title">3. Paste Claude's reply</p>
+      <textarea id="f-html" rows="5" placeholder="Paste Claude's whole reply here (the HTML file)"></textarea>
+      <div class="row">
+        <button class="btn grow" id="f-play">▶ Play film</button>
+        <button class="btn primary grow" id="f-record" disabled>⬇ Record &amp; download</button>
+      </div>
+      <p id="p-status" class="hint"></p>
+      <div class="player hidden" id="player"><iframe id="frame" sandbox="allow-scripts allow-downloads" title="Film preview"></iframe></div>
+    </div>
+  </dialog>
+
+  <script type="module" src="styles-library.js"></script>
+</body>
+</html>
