@@ -1,21 +1,10 @@
 // Sound panel UI shared by the Animator and the Style Library.
 import {
-  VOICES, DEFAULT_TTS_MODELS, MUSIC_MOODS, getKey, setKey, listTtsModels, generateVoice,
-  decodeToMono, mixSoundtrack, toAudioBuffer, encodeWavMono, audioContext, SR,
+  VOICES, MUSIC_MOODS, generateVoice, decodeToMono, mixSoundtrack, toAudioBuffer, encodeWavMono, audioContext, SR,
 } from "./sound.js";
 
 const PANEL_HTML = `
   <h3 class="snd-title">🔊 Sound</h3>
-  <details class="snd-key">
-    <summary>Google AI Studio key <span class="snd-keystate"></span></summary>
-    <p class="hint">Free key, no card needed: open <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>,
-      tap <b>Create API key</b>, copy it and paste it here. It's saved only in this browser and sent only to Google.</p>
-    <div class="row">
-      <input class="grow snd-keyinput" type="password" placeholder="Paste your AI Studio key" autocomplete="off" />
-      <button class="btn small snd-savekey">Save</button>
-      <button class="btn small ghost snd-clearkey">Remove</button>
-    </div>
-  </details>
   <label>Voiceover script <span class="hint">(what the voice says)</span>
     <textarea class="snd-text" rows="4" placeholder="Write the narration, or tap Fill from scenes"></textarea>
   </label>
@@ -24,12 +13,18 @@ const PANEL_HTML = `
   </div>
   <div class="row">
     <label class="grow">Voice<select class="snd-voice"></select></label>
-    <label class="grow">Speaking style<input class="snd-style" placeholder="e.g. energetic YouTube explainer" /></label>
+    <label class="grow">Speed
+      <select class="snd-speed">
+        <option value="0.85">Slow</option><option value="0.95">Relaxed</option><option value="1" selected>Normal</option>
+        <option value="1.1">Fast</option><option value="1.2">Very fast</option>
+      </select>
+    </label>
   </div>
   <div class="row">
-    <label class="grow">Voice model<select class="snd-model"></select></label>
-    <button class="btn primary snd-gen" style="align-self:flex-end">🎙 Generate voiceover</button>
+    <button class="btn primary grow snd-gen">🎙 Generate voiceover</button>
   </div>
+  <p class="hint">Free voice by Kokoro, made on your phone: no account, no key, no limits. The first time, the voice
+    model downloads once (about 90 MB; use Wi-Fi), then it's saved for next time. English voices only.</p>
   <audio class="snd-preview hidden" controls></audio>
   <p class="hint snd-vstatus"></p>
   <label class="toggle snd-fitwrap"><input type="checkbox" class="snd-fit" checked /> Stretch the video to fit the voiceover</label>
@@ -44,20 +39,18 @@ const PANEL_HTML = `
   <div class="row">
     <button class="btn small ghost snd-wav">⬇ Download soundtrack (WAV)</button>
   </div>
-  <p class="credit">Music and sound effects are generated in your browser with recipes adapted from
-    <a href="https://github.com/lemomo-ai/lemo-opuscar" target="_blank" rel="noopener">Lemo-Opuscar</a> (MIT). Voice by Google AI Studio (Gemini TTS).</p>
+  <p class="credit">Voice: <a href="https://github.com/hexgrad/kokoro" target="_blank" rel="noopener">Kokoro</a> (Apache-2.0).
+    Music and sound effects are generated in your browser with recipes adapted from
+    <a href="https://github.com/lemomo-ai/lemo-opuscar" target="_blank" rel="noopener">Lemo-Opuscar</a> (MIT).</p>
 `;
 
 const PANEL_CSS = `
   .snd { display: flex; flex-direction: column; gap: 10px; }
   .snd-title { margin: 0; font-size: 14px; }
-  .snd details summary { cursor: pointer; color: var(--text); font-size: 13px; }
-  .snd details[open] { display: flex; flex-direction: column; gap: 8px; }
   .snd audio { width: 100%; }
   .snd input[type=range] { padding: 0; accent-color: var(--accent); }
   .snd .credit { color: var(--muted); font-size: 11px; margin: 0; }
   .snd .credit a, .snd .hint a { color: var(--accent); }
-  .snd-keystate.ok { color: #3ecf8e; }
 `;
 
 export function createSoundPanel(container, { getScenes = null, fitOption = true, onChange = () => {} } = {}) {
@@ -77,53 +70,23 @@ export function createSoundPanel(container, { getScenes = null, fitOption = true
   const savePrefs = () => {
     try {
       localStorage.setItem("sound-prefs", JSON.stringify({
-        voice: q(".snd-voice").value, style: q(".snd-style").value, model: q(".snd-model").value,
+        voice: q(".snd-voice").value, speed: q(".snd-speed").value,
         music: q(".snd-music").value, mvol: q(".snd-mvol").value, svol: q(".snd-svol").value, sfx: q(".snd-sfx").checked,
       }));
     } catch {}
   };
 
-  for (const [name, desc] of VOICES) q(".snd-voice").append(new Option(`${name} (${desc})`, name));
+  for (const [id, label] of VOICES) q(".snd-voice").append(new Option(label, id));
   for (const [k, label] of Object.entries(MUSIC_MOODS)) q(".snd-music").append(new Option(label, k));
-  q(".snd-voice").value = prefs.voice || "Puck";
-  q(".snd-style").value = prefs.style || "";
+  q(".snd-voice").value = VOICES.some(([id]) => id === prefs.voice) ? prefs.voice : "af_heart";
+  q(".snd-speed").value = prefs.speed || "1";
+  try { localStorage.removeItem("gemini-key"); } catch {} // from the old Google voice option
   q(".snd-music").value = prefs.music || "upbeat";
   q(".snd-mvol").value = prefs.mvol ?? 45;
   q(".snd-svol").value = prefs.svol ?? 60;
   q(".snd-sfx").checked = prefs.sfx ?? true;
   if (!fitOption) q(".snd-fitwrap").classList.add("hidden");
   if (getScenes) q(".snd-fill").classList.remove("hidden");
-
-  function setModels(list) {
-    const sel = q(".snd-model");
-    sel.innerHTML = "";
-    for (const m of list) sel.append(new Option(m, m));
-    if (prefs.model && list.includes(prefs.model)) sel.value = prefs.model;
-  }
-  setModels(DEFAULT_TTS_MODELS);
-
-  async function refreshKeyState() {
-    const key = getKey();
-    const state = q(".snd-keystate");
-    state.textContent = key ? "✓ saved" : "(needed for voiceover)";
-    state.classList.toggle("ok", Boolean(key));
-    if (!key) { q(".snd-key").open = true; return; }
-    try {
-      const models = await listTtsModels(key);
-      if (models.length) setModels(models);
-    } catch (err) {
-      q(".snd-vstatus").textContent = `Couldn't check your key: ${err.message}`;
-    }
-  }
-  q(".snd-savekey").onclick = () => {
-    const k = q(".snd-keyinput").value.trim();
-    if (!k) return;
-    setKey(k);
-    q(".snd-keyinput").value = "";
-    q(".snd-key").open = false;
-    refreshKeyState();
-  };
-  q(".snd-clearkey").onclick = () => { setKey(""); refreshKeyState(); };
 
   let voice = null; // Float32Array at SR
   let voiceWav = null;
@@ -140,12 +103,15 @@ export function createSoundPanel(container, { getScenes = null, fitOption = true
     savePrefs();
     if (!q(".snd-text").value.trim() && getScenes) q(".snd-fill").onclick();
     btn.disabled = true;
-    status.textContent = "Generating voiceover with Google AI Studio…";
+    status.textContent = "Starting the voice engine…";
     try {
       audioContext(); // unlock audio inside the tap
       voiceWav = await generateVoice({
-        key: getKey(), model: q(".snd-model").value, text: q(".snd-text").value,
-        voice: q(".snd-voice").value, style: q(".snd-style").value.trim(),
+        text: q(".snd-text").value, voice: q(".snd-voice").value, speed: Number(q(".snd-speed").value),
+        onProgress: (p) => {
+          if (p.stage === "download") status.textContent = `Downloading the voice model (first time only): ${Math.round((p.loaded / p.total) * 100)}% of ${p.file.split("/").pop()}`;
+          else status.textContent = `Speaking line ${p.done + 1} of ${p.total}…`;
+        },
       });
       voice = await decodeToMono(voiceWav);
       const audio = q(".snd-preview");
@@ -160,7 +126,7 @@ export function createSoundPanel(container, { getScenes = null, fitOption = true
     }
   };
 
-  for (const sel of [".snd-music", ".snd-mvol", ".snd-svol", ".snd-sfx", ".snd-voice", ".snd-style", ".snd-model", ".snd-fit"]) {
+  for (const sel of [".snd-music", ".snd-mvol", ".snd-svol", ".snd-sfx", ".snd-voice", ".snd-speed", ".snd-fit"]) {
     q(sel).addEventListener("change", () => { savePrefs(); onChange(); });
   }
 
@@ -185,7 +151,6 @@ export function createSoundPanel(container, { getScenes = null, fitOption = true
     setText(text) { if (!q(".snd-text").value.trim()) q(".snd-text").value = text; },
   };
   q(".snd-wav").onclick = () => api.onWavDownload?.();
-  refreshKeyState();
   return api;
 }
 

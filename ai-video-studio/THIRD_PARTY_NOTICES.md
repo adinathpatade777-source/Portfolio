@@ -27,3 +27,7 @@ USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 The Style Library page loads Lemo-Opuscar's style guides (CC BY-NC 4.0) and posters (CC BY 4.0)
 from GitHub at runtime; they are not included in this repository.
+
+Voiceover uses Kokoro (https://github.com/hexgrad/kokoro, Apache-2.0) through kokoro-js
+(https://www.npmjs.com/package/kokoro-js, Apache-2.0). Both the library and the model are loaded in the
+viewer's browser at runtime (from jsDelivr and Hugging Face); they are not included in this repository.

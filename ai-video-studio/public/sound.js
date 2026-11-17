@@ -1,5 +1,5 @@
-// Sound engine: Google AI Studio (Gemini) voiceover, procedural music beds and sound effects,
-// mixed into one soundtrack. Runs entirely in the browser.
+// Sound engine: Kokoro voiceover, procedural music beds and sound effects, mixed into one
+// soundtrack. Runs entirely in the browser.
 //
 // The sound-effect and plucked-string recipes are adapted from Lemo-Opuscar's core/audio/sfx.py and
 // core/audio/pluck.py (https://github.com/lemomo-ai/lemo-opuscar), MIT License,
@@ -7,102 +7,38 @@
 
 export const SR = 44100;
 
-// ---------- Google AI Studio voiceover ----------
+// ---------- Kokoro voiceover (runs in a worker, in the browser) ----------
+// [id, label]. The browser build of Kokoro speaks English (US and UK accents).
 export const VOICES = [
-  ["Kore", "Firm"], ["Puck", "Upbeat"], ["Zephyr", "Bright"], ["Charon", "Informative"], ["Fenrir", "Excitable"],
-  ["Leda", "Youthful"], ["Orus", "Firm"], ["Aoede", "Breezy"], ["Callirrhoe", "Easy-going"], ["Autonoe", "Bright"],
-  ["Enceladus", "Breathy"], ["Iapetus", "Clear"], ["Umbriel", "Easy-going"], ["Algieba", "Smooth"], ["Despina", "Smooth"],
-  ["Erinome", "Clear"], ["Algenib", "Gravelly"], ["Rasalgethi", "Informative"], ["Laomedeia", "Upbeat"], ["Achernar", "Soft"],
-  ["Alnilam", "Firm"], ["Schedar", "Even"], ["Gacrux", "Mature"], ["Pulcherrima", "Forward"], ["Achird", "Friendly"],
-  ["Zubenelgenubi", "Casual"], ["Vindemiatrix", "Gentle"], ["Sadachbia", "Lively"], ["Sadaltager", "Knowledgeable"], ["Sulafat", "Warm"],
+  ["af_heart", "Heart (US, female, warm)"], ["af_bella", "Bella (US, female)"], ["af_nicole", "Nicole (US, female, soft)"],
+  ["af_sarah", "Sarah (US, female)"], ["af_sky", "Sky (US, female)"], ["af_nova", "Nova (US, female)"], ["af_alloy", "Alloy (US, female)"],
+  ["af_aoede", "Aoede (US, female)"], ["af_jessica", "Jessica (US, female)"], ["af_kore", "Kore (US, female)"], ["af_river", "River (US, female)"],
+  ["am_michael", "Michael (US, male)"], ["am_adam", "Adam (US, male)"], ["am_eric", "Eric (US, male)"], ["am_liam", "Liam (US, male)"],
+  ["am_onyx", "Onyx (US, male, deep)"], ["am_puck", "Puck (US, male, lively)"], ["am_echo", "Echo (US, male)"], ["am_fenrir", "Fenrir (US, male)"],
+  ["bf_emma", "Emma (UK, female)"], ["bf_isabella", "Isabella (UK, female)"], ["bf_alice", "Alice (UK, female)"], ["bf_lily", "Lily (UK, female)"],
+  ["bm_george", "George (UK, male)"], ["bm_lewis", "Lewis (UK, male)"], ["bm_daniel", "Daniel (UK, male)"], ["bm_fable", "Fable (UK, male)"],
 ];
-export const DEFAULT_TTS_MODELS = ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"];
-const API = "https://generativelanguage.googleapis.com/v1beta";
 
-export function getKey() {
-  try { return localStorage.getItem("gemini-key") || ""; } catch { return ""; }
-}
-export function setKey(k) {
-  try { k ? localStorage.setItem("gemini-key", k) : localStorage.removeItem("gemini-key"); } catch {}
-}
-
-async function googleError(res) {
-  let msg = `Google returned ${res.status}`;
-  try { const j = await res.json(); if (j.error?.message) msg = j.error.message; } catch {}
-  if (res.status === 429) msg = "Free quota used up for now. Wait a minute (or until tomorrow) and try again. " + msg;
-  if (res.status === 400 && /API key/i.test(msg)) msg = "That Google AI Studio key isn't valid. " + msg;
-  return new Error(msg);
-}
-
-export async function listTtsModels(key) {
-  const res = await fetch(`${API}/models?pageSize=1000&key=${encodeURIComponent(key)}`);
-  if (!res.ok) throw await googleError(res);
-  const data = await res.json();
-  const names = (data.models || []).map((m) => m.name.replace(/^models\//, "")).filter((n) => /tts/i.test(n));
-  // Newest first, "lite" after the full model of the same version.
-  return names.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }) || a.length - b.length);
-}
-
-function findAudio(node) {
-  if (!node || typeof node !== "object") return null;
-  if (typeof node.data === "string" && node.data.length > 200) return { data: node.data, mime: node.mime_type || node.mimeType || "" };
-  for (const v of Array.isArray(node) ? node : Object.values(node)) {
-    const hit = findAudio(v);
-    if (hit) return hit;
-  }
-  return null;
-}
-
-function b64ToBytes(b64) {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-// Returns WAV bytes whatever Google sent (WAV, or raw 16-bit PCM).
-function toWav(bytes, mime) {
-  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) return bytes.buffer; // "RIFF"
-  const rate = Number((mime.match(/rate=(\d+)/) || [])[1]) || 24000;
-  const pcm = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
-  return encodeWavMono(Float32Array.from(pcm, (s) => s / 32768), rate);
-}
-
-export async function generateVoice({ key, model, text, voice, style }) {
-  if (!key) throw new Error("Add your Google AI Studio key first.");
-  if (!text.trim()) throw new Error("Write the narration first.");
-  // Current API (Interactions).
-  const content = { type: "text", text };
-  if (style) content.annotations = [{ type: "speech_metadata", style }];
-  let res = await fetch(`${API}/interactions?key=${encodeURIComponent(key)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      input: [{ type: "user_input", content: [content] }],
-      response_format: { type: "audio" },
-      generation_config: { speech_config: [{ voice }] },
-    }),
+let worker = null;
+let jobId = 0;
+// onProgress receives { stage: "download", loaded, total } or { stage: "speak", done, total }.
+export function generateVoice({ text, voice = "af_heart", speed = 1, onProgress = () => {} }) {
+  if (!text.trim()) return Promise.reject(new Error("Write the narration first."));
+  worker ??= new Worker(new URL("./kokoro-worker.js", import.meta.url), { type: "module" });
+  const id = ++jobId;
+  return new Promise((resolve, reject) => {
+    const onMsg = (e) => {
+      const m = e.data;
+      if (m.type === "progress") return onProgress(m);
+      if (m.id !== id) return;
+      worker.removeEventListener("message", onMsg);
+      if (m.type === "done") resolve(encodeWavMono(m.audio, m.rate));
+      else reject(new Error(m.message));
+    };
+    worker.addEventListener("message", onMsg);
+    worker.onerror = (e) => { worker.removeEventListener("message", onMsg); worker = null; reject(new Error(e.message || "The voice engine failed to start.")); };
+    worker.postMessage({ id, text, voice, speed });
   });
-  if (res.ok) {
-    const audio = findAudio(await res.json());
-    if (audio) return toWav(b64ToBytes(audio.data), audio.mime);
-  }
-  const firstError = res.ok ? new Error("Google sent no audio.") : await googleError(res);
-  if (res.status === 429 || res.status === 403) throw firstError;
-  // Older models use generateContent.
-  res = await fetch(`${API}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: style ? `Say this in a ${style} way:\n${text}` : text }] }],
-      generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
-    }),
-  });
-  if (!res.ok) throw firstError;
-  const audio = findAudio(await res.json());
-  if (!audio) throw new Error("Google sent no audio.");
-  return toWav(b64ToBytes(audio.data), audio.mime);
 }
 
 // ---------- DSP helpers ----------
