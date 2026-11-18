@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+  #bg, #cam, #vig, #flash { position: absolute; inset: 0; }
+  #cam { transform-origin: 50% 55%; }
+  #cam > svg { width: 1920px; height: 1080px; display: block; }
+  #vig { background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0,0,0,.55) 100%); pointer-events: none; }
+  #big { position: absolute; top: 46px; left: 0; right: 0; text-align: center;
+         font: 900 160px/1.05 'Inter', 'FreeSans', sans-serif; color: #fff; letter-spacing: -3px;
+         -webkit-text-stroke: 14px #111; paint-order: stroke fill;
+         filter: drop-shadow(0 12px 0 rgba(0,0,0,.35)); transform-origin: 50% 50%; }
+  #big.neg { color: #ff3b3b; } #big.pos { color: #3ddc84; }
+  #cap { position: absolute; bottom: 54px; left: 140px; right: 140px; text-align: center;
+         font: 800 60px/1.25 'Inter', 'FreeSans', sans-serif; color: #fff;
+         -webkit-text-stroke: 9px #000; paint-order: stroke fill; }
+  #cap .on { color: #ffd23f; }
+  #flash { background: #fff; opacity: 0; pointer-events: none; }
+
+  /* ---- animation library the agent uses on SVG groups ---- */
+  #cam svg * { transform-box: fill-box; transform-origin: center; }
+  .a-pop      { animation: a-pop .55s cubic-bezier(.2,1.7,.4,1) both; }
+  .a-stamp    { animation: a-stamp .4s cubic-bezier(.5,0,.8,.4) both; }
+  .a-left     { animation: a-left .8s cubic-bezier(.2,.9,.3,1) both; }
+  .a-right    { animation: a-right .8s cubic-bezier(.2,.9,.3,1) both; }
+  .a-rise     { animation: a-rise .8s cubic-bezier(.2,.9,.3,1) both; }
+  .a-drop     { animation: a-drop .7s cubic-bezier(.5,0,.6,1.4) both; }
+  .a-fade     { animation: a-fade .8s ease both; }
+  .a-float    { animation: a-float 2.4s ease-in-out infinite; }
+  .a-bob      { animation: a-bob .9s ease-in-out infinite; }
+  .a-wobble   { animation: a-wobble 1.2s ease-in-out infinite; }
+  .a-shake    { animation: a-shake .25s linear infinite; }
+  .a-pulse    { animation: a-pulse 1s ease-in-out infinite; }
+  .a-spin     { animation: a-spin 3s linear infinite; }
+  .a-fall     { animation: a-fall 2.6s linear infinite; }
+  .a-flicker  { animation: a-flicker .35s ease-in-out infinite alternate; }
+  .a-blink    { animation: a-blink 1s steps(1) infinite; }
+  .a-draw     { stroke-dasharray: 1; stroke-dashoffset: 1; animation: a-draw 1.6s ease-out .3s both; }
+  .a-crash    { animation: a-crash 1.4s cubic-bezier(.6,0,.9,.5) both; }
+  .a-grow     { transform-origin: bottom center !important; animation: a-grow 1s cubic-bezier(.2,.9,.3,1) both; }
+  .a-shrink   { transform-origin: bottom center !important; animation: a-shrink 1.4s cubic-bezier(.6,0,.8,.6) both; }
+  @keyframes a-pop     { from { transform: scale(0); opacity: 0 } 70% { opacity: 1 } to { transform: scale(1) } }
+  @keyframes a-stamp   { from { transform: scale(3) rotate(-12deg); opacity: 0 } to { transform: scale(1) rotate(-6deg); opacity: 1 } }
+  @keyframes a-left    { from { transform: translateX(-900px) } to { transform: none } }
+  @keyframes a-right   { from { transform: translateX(900px) } to { transform: none } }
+  @keyframes a-rise    { from { transform: translateY(600px) } to { transform: none } }
+  @keyframes a-drop    { from { transform: translateY(-900px) } to { transform: none } }
+  @keyframes a-fade    { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes a-float   { 50% { transform: translateY(-22px) } }
+  @keyframes a-bob     { 50% { transform: translateY(-8px) rotate(1deg) } }
+  @keyframes a-wobble  { 25% { transform: rotate(-4deg) } 75% { transform: rotate(4deg) } }
+  @keyframes a-shake   { 25% { transform: translate(-6px,3px) } 50% { transform: translate(5px,-4px) } 75% { transform: translate(-3px,-2px) } }
+  @keyframes a-pulse   { 50% { transform: scale(1.08) } }
+  @keyframes a-spin    { to { transform: rotate(360deg) } }
+  @keyframes a-fall    { from { transform: translateY(-1300px) rotate(0) } to { transform: translateY(1300px) rotate(540deg) } }
+  @keyframes a-flicker { from { transform: scale(1,1); opacity: .85 } to { transform: scale(1.06,1.18); opacity: 1 } }
+  @keyframes a-blink   { 50% { opacity: 0 } }
+  @keyframes a-draw    { to { stroke-dashoffset: 0 } }
+  @keyframes a-crash   { from { transform: translateY(-500px) rotate(0) } to { transform: translateY(0) rotate(14deg) } }
+  @keyframes a-grow    { from { transform: scaleY(0) } to { transform: scaleY(1) } }
+  @keyframes a-shrink  { from { transform: scaleY(1) } to { transform: scaleY(.15) } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <div id="cam"></div>
+  <div id="vig"></div>
+  <div id="big"></div>
+  <div id="cap"></div>
+  <div id="flash"></div>
+</div>
+<script>
+const MOODS = {
+  red_alarm:    ['#3a070b', '#120204', '#ff2d2d'],
+  green_money:  ['#0d3b22', '#04140b', '#3ddc84'],
+  blue_tech:    ['#0b2350', '#030a1a', '#38bdf8'],
+  gold_luxury:  ['#4a3508', '#140e02', '#ffc93c'],
+  dark_mystery: ['#241338', '#07040c', '#a78bfa'],
+};
+let S = null, anims = [];
+const $ = id => document.getElementById(id);
+const ease = x => x < 0 ? 0 : x > 1 ? 1 : 1 - Math.pow(1 - x, 3);
+
+window.setup = function (scene) {
+  S = scene;
+  const m = MOODS[scene.mood] || MOODS.red_alarm;
+  $('bg').style.background = `radial-gradient(ellipse at 50% 42%, ${m[0]} 0%, ${m[1]} 75%)`;
+  $('cam').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1920 1080">${scene.defs}${scene.svg}</svg>`;
+  const big = $('big');
+  big.textContent = scene.big_text || '';
+  big.className = /^[-−]|crash|loss|gone|down/i.test(scene.big_text || '') ? 'neg' : (/^\+/.test(scene.big_text || '') ? 'pos' : '');
+  // caption chunks of up to 6 words
+  const chunks = [];
+  scene.words.forEach((w, i) => { if (i % 6 === 0) chunks.push([]); chunks[chunks.length - 1].push(w); });
+  S.chunks = chunks;
+  void document.body.offsetHeight;
+  anims = document.getAnimations();
+  anims.forEach(a => a.pause());
+};
+
+window.seek = function (t) {
+  anims.forEach(a => { a.currentTime = t * 1000; });
+  const p = ease(t / S.dur);
+  let s = 1, x = 0, y = 0;
+  switch (S.camera) {
+    case 'zoom_in':   s = 1 + .12 * p; break;
+    case 'zoom_out':  s = 1.12 - .12 * p; break;
+    case 'pan_left':  s = 1.12; x = 70 - 140 * p; break;
+    case 'pan_right': s = 1.12; x = -70 + 140 * p; break;
+    case 'shake': { s = 1.06 + .04 * p; const k = Math.max(0, 1 - t / .7) * 14; x = Math.sin(t * 90) * k; y = Math.cos(t * 70) * k; break; }
+    default: s = 1.02 + .03 * p;
+  }
+  $('cam').style.transform = `translate(${x}px,${y}px) scale(${s})`;
+  // big text: pops in at .25s, gentle pulse after
+  const bt = t - .25;
+  const b = $('big');
+  if (bt < 0) b.style.transform = 'scale(0)';
+  else if (bt < .35) { const q = bt / .35; b.style.transform = `scale(${q < .7 ? q / .7 * 1.18 : 1.18 - (q - .7) / .3 * .18}) rotate(-2deg)`; }
+  else b.style.transform = `scale(${1 + .03 * Math.sin(bt * 4)}) rotate(-2deg)`;
+  // captions with the current word highlighted
+  let ci = 0, wi = -1;
+  S.chunks.forEach((c, i) => c.forEach((w, j) => { if (t >= w.t) { ci = i; wi = j; } }));
+  const c = S.chunks[ci] || [];
+  $('cap').innerHTML = c.map((w, j) => `<span class="${j === wi ? 'on' : ''}">${w.w.replace(/</g, '&lt;')}</span>`).join(' ');
+  $('flash').style.opacity = S.flash ? Math.max(0, .55 - t / .18 * .55) : 0;
+};
+</script>
+</body>
+</html>
