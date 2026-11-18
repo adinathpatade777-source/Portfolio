@@ -1,0 +1,23 @@
+{
+ "fps": 30,
+ "orientation": "sideways",
+ "style": {"rain": 0.6, "haze": 0.35, "grade": 1.0, "grain": 3},
+ "audio": {"voice": "voice.mp3", "voice_delay": 0.6, "rain_ambience": true},
+ "shots": [
+  {"clip": "vids_r1_puddle.mp4", "in": 0.5, "dur": 2.0},
+  {"clip": "vids_r2_pond.mp4", "in": 1.0, "dur": 1.5, "transition": "whip"},
+  {"image": "r3.png", "dur": 1.9, "rain": 0, "live": {
+      "sway": 3, "sway_box": [0.4, 0, 1, 0.7],
+      "wiggle": [{"box": [0.36, 0.6, 0.55, 0.88], "amp": [5, 2], "freq": 2.4},
+                 {"box": [0.02, 0.12, 0.42, 1], "amp": [0, 1.5], "freq": 0.3}],
+      "move": {"type": "dolly", "amount": 0.04, "dir": [1, 0]}}},
+  {"clip": "vids_r4_hand.mp4", "in": 0.3, "dur": 1.8, "rain": 0},
+  {"scene": "SunBreak", "dur": 2.5, "transition": "fade", "xfade": 0.5}
+ ],
+ "captions": [
+  {"text": "Your salary doesn't show how rich you are.", "t0": 0.6, "t1": 3.3, "y": 0.8, "size": 58},
+  {"text": "Your net worth does.", "t0": 3.5, "t1": 5.3, "y": 0.8, "size": 66},
+  {"text": "Everything you own,", "t0": 5.4, "t1": 9.4, "y": 0.76, "size": 62},
+  {"text": "minus everything you owe.", "t0": 6.9, "t1": 9.4, "y": 0.82, "size": 62}
+ ]
+}

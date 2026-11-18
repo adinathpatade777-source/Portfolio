@@ -1,3 +1,4 @@
 numpy>=1.24
 opencv-python-headless>=4.8
 pillow>=10
+onnxruntime>=1.16  # optional, for depth parallax

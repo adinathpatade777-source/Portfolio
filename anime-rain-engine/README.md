@@ -42,11 +42,45 @@ engine/fx.py      Rain (3 layers), Ripples (displacement + crests + big events),
 engine/rigs.py    sneaker + walk cycle, seated boy (IK arm, blink, breathing), maple leaf
 engine/scenes.py  PuddleSteps, RainPond, WindowDesk, SunBreak  (static layers cached,
                   motion in frame(t))
+engine/live.py    LivingImage (ripples, sway, wiggle, rack, 2.5D dolly), ClipSource
+engine/post.py    wet anime grade + glow, grain, captions, audio mix with ducking
+compose.py        compositor: clips + living images + code scenes -> styled Short
 render.py         timeline, transitions, sideways framing, captions, ffmpeg + audio mix
 ```
 
 Each scene's `frame(t)` depends only on `t`, so you can render any time range in
 parallel. To add a scene, write a class with `dur` and `frame(t) -> float32 BGR
 1920x1080`, then add it to `TIMELINE` in `render.py`.
+
+## Compose mode: a real anime look from Google Vids clips and painted frames
+
+Code-drawn art looks flat. For a film look, `compose.py` builds the Short from
+real-looking sources and gives every shot the same rainy-anime style pass:
+
+| Shot source | What happens |
+|---|---|
+| `"clip": "x.mp4"` (Google Vids / Veo, or any video) | trimmed (`in`, `dur`), `speed`-ramped, scaled to cover |
+| `"image": "x.png"` (painted anime frame) | brought to life *inside* the frame: rain ripples refracting water, swaying foliage, a looping hand or foot, breathing, rack focus, and `dolly` = true 2.5D depth parallax (near things move more) |
+| `"scene": "PuddleSteps"` | one of the code-drawn scenes above |
+
+Style pass on every shot: 3-layer rain overlay (`rain` 0..1), optional refracting
+window drops (`glass: true`), wet teal/emerald grade, soft glow, film grain. Shots are
+joined by `cut`, `whip`, `fade` or `flash`. The film is turned sideways to 9:16
+(`"orientation": "sideways"`) or kept `"landscape"`. The voice-over is delayed and mixed
+over synthesized rain ambience, and the rain/music are ducked under it.
+
+```bash
+python3 compose.py example_project.json --preview      # contact sheet
+python3 compose.py example_project.json --out short.mp4
+```
+
+**Depth model (for `dolly` and `rack`):** put MiDaS small in `models/`:
+`curl -sSL -o models/midas_small.onnx https://github.com/isl-org/MiDaS/releases/download/v2_1/model-small.onnx`
+and `pip install onnxruntime`. Without it, depth falls back to "lower in frame = nearer".
+
+**Google Vids workflow:** create a 16:9 video, upload each painted frame, animate it
+with Veo (image-to-video) using a motion prompt (rain, ripples, hand writing, leaves
+swaying, static camera), then download the clips and list them as `"clip"` shots.
+Keep the clips landscape; the compositor turns the film sideways.
 
 All characters, places and designs here are original.
