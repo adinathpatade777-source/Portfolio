@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Story Studio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Story Studio</h1>
+      <p class="sub">Script → ChatGPT images → Kokoro voiceover → animated video / Google Vids pack. No API keys.</p>
+    </div>
+    <nav class="steps">
+      <a href="#s1">1 Script</a><a href="#s2">2 Images</a><a href="#s3">3 Voiceover</a><a href="#s4">4 Animate</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- STEP 1 -->
+    <section id="s1" class="card">
+      <h2><span class="n">1</span> Script &amp; scenes</h2>
+      <p class="hint">Write or paste your script. Blank lines split scenes; one long paragraph is split every 2 sentences.</p>
+      <textarea id="script" rows="8" placeholder="Once upon a time, in a quiet village by the sea...&#10;&#10;Every morning, the old fisherman watched the horizon..."></textarea>
+      <div class="grid3">
+        <label>Visual style
+          <input id="style" value="Cinematic digital illustration, warm lighting, highly detailed">
+        </label>
+        <label>Recurring characters (keeps images consistent)
+          <input id="characters" placeholder="e.g. an old fisherman with a white beard and blue cap">
+        </label>
+        <label>Aspect ratio
+          <select id="aspect">
+            <option value="16:9">16:9 – YouTube</option>
+            <option value="9:16">9:16 – Shorts / Reels</option>
+            <option value="1:1">1:1 – Square</option>
+          </select>
+        </label>
+      </div>
+      <button id="buildScenes" class="primary">Build scenes</button>
+    </section>
+
+    <!-- STEP 2 -->
+    <section id="s2" class="card">
+      <h2><span class="n">2</span> Create &amp; collect images from ChatGPT</h2>
+      <p class="hint">Click <b>Open in ChatGPT</b> (prompt is pre-filled) or <b>Copy</b> it. Download the image ChatGPT makes, then drop it on the scene,
+        click the scene and press <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste, or bulk-upload all images (sorted by file name, filled into empty scenes).</p>
+      <div class="row">
+        <button id="copyAll">Copy all prompts (one chat)</button>
+        <label class="btn">Bulk upload images<input id="bulk" type="file" accept="image/*" multiple hidden></label>
+        <span id="imgCount" class="pill">0 / 0 images</span>
+      </div>
+      <div id="scenes" class="scenes"><p class="empty">Build scenes in step 1 first.</p></div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section id="s3" class="card">
+      <h2><span class="n">3</span> Voiceover (Kokoro TTS – runs in your browser)</h2>
+      <p class="hint">Kokoro is a free open-source voice model. It downloads once (~90&nbsp;MB) and then runs offline on your device – no API, no key.
+        English voices only; for Hindi/Marathi, upload your own recording per scene in step 2.</p>
+      <div class="grid3">
+        <label>Voice
+          <select id="voice">
+            <option value="af_heart">Heart (US, female)</option>
+            <option value="af_bella">Bella (US, female)</option>
+            <option value="af_nicole">Nicole (US, female, soft)</option>
+            <option value="af_sarah">Sarah (US, female)</option>
+            <option value="am_michael">Michael (US, male)</option>
+            <option value="am_adam">Adam (US, male)</option>
+            <option value="am_fenrir">Fenrir (US, male, deep)</option>
+            <option value="bf_emma">Emma (UK, female)</option>
+            <option value="bf_isabella">Isabella (UK, female)</option>
+            <option value="bm_george">George (UK, male)</option>
+            <option value="bm_lewis">Lewis (UK, male)</option>
+          </select>
+        </label>
+        <label>Speed <span id="speedVal">1.0×</span>
+          <input id="speed" type="range" min="0.7" max="1.4" step="0.05" value="1">
+        </label>
+        <label>Quality
+          <select id="dtype">
+            <option value="q8">Fast (q8, ~90 MB)</option>
+            <option value="fp32">Best (fp32, ~330 MB)</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <button id="genVO" class="primary">Generate voiceover for all scenes</button>
+        <button id="previewVoice">Test voice</button>
+        <span id="voStatus" class="status"></span>
+      </div>
+      <div class="progress"><div id="voBar"></div></div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section id="s4" class="card">
+      <h2><span class="n">4</span> Animate &amp; export</h2>
+      <div class="grid3">
+        <label>Motion
+          <select id="motion">
+            <option value="mix">Mix (zoom + pan)</option>
+            <option value="zoomin">Zoom in</option>
+            <option value="zoomout">Zoom out</option>
+            <option value="pan">Pan</option>
+            <option value="none">Still</option>
+          </select>
+        </label>
+        <label>Transition
+          <select id="transition">
+            <option value="fade">Crossfade</option>
+            <option value="black">Dip to black</option>
+            <option value="cut">Cut</option>
+          </select>
+        </label>
+        <label>Subtitles
+          <select id="subs">
+            <option value="on">On</option>
+            <option value="off">Off</option>
+          </select>
+        </label>
+      </div>
+      <div class="stage"><canvas id="canvas" width="1920" height="1080"></canvas></div>
+      <div class="row">
+        <button id="play" class="primary">▶ Preview</button>
+        <button id="stop">■ Stop</button>
+        <button id="exportVideo">⬇ Export video</button>
+        <button id="exportVids">⬇ Google Vids pack (.zip)</button>
+        <span id="renderStatus" class="status"></span>
+      </div>
+      <details class="vids">
+        <summary>How to animate in Google Vids (no API exists for Vids)</summary>
+        <ol>
+          <li>Download the <b>Google Vids pack</b> and unzip it.</li>
+          <li>Open <a href="https://vids.google.com" target="_blank" rel="noopener">vids.google.com</a> → <b>Blank video</b>.</li>
+          <li>Upload <code>images/</code> – add one scene per image (order = file number).</li>
+          <li>Select each image → <b>Animate</b> (zoom / pan / fade) and set its duration from <code>timeline.txt</code>.</li>
+          <li>Upload <code>voiceover/full-voiceover.wav</code> as the audio track (or each scene's WAV under its scene).</li>
+          <li>Optional: paste <code>script.txt</code> into captions, then export.</li>
+        </ol>
+        <p class="hint">Or skip Vids entirely – <b>Export video</b> renders the same animation here in your browser.</p>
+      </details>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
