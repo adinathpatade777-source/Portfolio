@@ -38,11 +38,12 @@ def main():
     ap.add_argument("--resume", default="", help="output folder of an earlier run to continue")
     ap.add_argument("--no-review", action="store_true")
     ap.add_argument("--review-rounds", type=int, default=2)
+    ap.add_argument("--style", choices=["classic", "doodle"], default="classic", help="classic = Paper Billions-like; doodle = minimalist dark-comedy stick comic")
     ap.add_argument("--workers", type=int, default=4)
     a = ap.parse_args()
 
     cfg = {"topic": a.topic, "lang": a.lang, "seconds": a.seconds, "voice": a.voice,
-           "voice_file": a.voice_file, "workers": a.workers, "today": dt.date.today().isoformat()}
+           "voice_file": a.voice_file, "style": a.style, "workers": a.workers, "today": dt.date.today().isoformat()}
     if a.resume:
         out = Path(a.resume).resolve()
     else:

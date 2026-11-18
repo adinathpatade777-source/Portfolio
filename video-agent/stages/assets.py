@@ -14,10 +14,32 @@ ANIMS = ("a-pop a-stamp a-left a-right a-rise a-drop a-fade (entrances, play onc
          "a-draw (stroke draws on; the path needs pathLength=\"1\") | a-crash (falls in and tilts) | "
          "a-grow a-shrink (bars grow / collapse from the bottom)")
 
-STYLE = """Art style: modern flat 2D explainer cartoon. Thick dark outlines (stroke #141414, 6-8px),
+STYLES = {
+    "classic": """Art style: modern flat 2D explainer cartoon. Thick dark outlines (stroke #141414, 6-8px),
 bold flat colors, one soft shadow tone, simple rounded shapes, big friendly heads, expressive eyes.
 Real people are recognizable by hair, glasses, clothes and colors, always drawn kindly, never ugly.
-Silhouette characters are solid dark shapes (#0b0b0f) with a thin colored rim light and NO face."""
+Silhouette characters are solid dark shapes (#0b0b0f) with a thin colored rim light and NO face.""",
+    "doodle": """Art style: ORIGINAL minimalist dark-comedy web-comic doodle (do not copy any existing
+comic's characters). Characters: a big plain circle head (white #ffffff fill, black 5px outline),
+two black dot eyes, a tiny curved line mouth that shows the emotion, no nose, no neck; a body that
+is one simple flat-colored rounded shirt shape, thin black stick arms and legs (5px, round caps),
+small oval hands and shoes. Each person is told apart only by ONE or TWO simple marks: a hair
+shape, glasses, a tie, a jacket color. Props are simple flat shapes with black 4px outlines.
+Lots of empty space, no gradients, no shading, no detailed backgrounds.
+Silhouette characters: the same doodle shape but filled solid black, with a white "?" above, NO face.""",
+}
+STYLE = STYLES["classic"]
+BACKGROUND = {
+    "classic": """Build a real setting behind the characters: e.g. office walls/windows, a city skyline, a trading
+floor with screens, a stage — 15-40 shapes, using the mood colors, darker than the foreground
+so characters pop. Add a soft ellipse shadow under every character. You may add short labels
+with <text> (font-family Inter, font-weight 800), e.g. a ticker "NVDA ▼17%".""",
+    "doodle": """The page background is a flat light color. Draw only a thin black ground line (y about 860)
+and at most 3-6 simple background hints (a desk, a door, a window outline, a sign). Comedy comes from
+the characters' poses, facial expressions and one absurd visual gag per scene that matches the line
+(e.g. a character calmly sipping coffee while money burns behind him). Labels with <text> use
+font-family Inter, font-weight 800, black.""",
+}
 
 
 def _check(xml_text):
@@ -37,7 +59,7 @@ def cast(cfg, story, script, out):
     props = sorted({p for ln in script["lines"] for p in ln["scene"].get("props", [])})
     prompt = f"""Draw the reusable cartoon library for a money-news explainer video as SVG <symbol>s.
 
-{STYLE}
+{STYLES[cfg.get('style', 'classic')]}
 
 Cast (one symbol each, id = the cast id, viewBox="0 0 400 700", full body standing, centered,
 feet touching y=690):
@@ -49,8 +71,7 @@ Always include: prop_bill (a cash bill), prop_coin, prop_chart_down (red line ch
 prop_chart_up (green rising chart), prop_flame.
 
 Rules: valid XML only, no <script>, no external images or fonts, no <text> inside characters.
-Give gradients/filters ids that start with the symbol id. Characters should be detailed enough
-to look professional (hair shapes, face, hands, clothes folds, shoes), about 40-90 elements each.
+Give gradients/filters ids that start with the symbol id. {"Characters should be detailed enough to look professional (hair shapes, face, hands, clothes folds, shoes), about 40-90 elements each." if cfg.get("style", "classic") == "classic" else "Keep characters very simple: 8-15 elements each. Draw 2 extra pose variants per non-silhouette person with ids <id>_shrug and <id>_panic (same look, different arms/mouth)."}
 
 Reply with one ```svg block that contains only <defs>...</defs> with all the symbols."""
     for attempt in range(3):
@@ -85,7 +106,7 @@ your drawing ("{sc.get('mood')}"), shows the big text "{sc.get('big_text', '')}"
 Narration for this scene: "{line['text']}"
 Plan: {json.dumps(sc, ensure_ascii=False)}
 
-{STYLE}
+{STYLES[cfg.get('style', 'classic')]}
 
 Available symbols (place them with <use href="#id" x=".." y=".." width=".." height=".."/>;
 keep the symbol's aspect ratio from its viewBox):
@@ -97,10 +118,7 @@ Make it feel alive: 1-2 entrances at the start, at least 2 looping motions, and 
 action that matches the narration (falling bills use many small <g class="a-fall"> with
 different x and negative delays; crashing charts use a-draw on a polyline with pathLength="1").
 
-Build a real setting behind the characters: e.g. office walls/windows, a city skyline, a trading
-floor with screens, a stage — 15-40 shapes, using the mood colors, darker than the foreground
-so characters pop. Add a soft ellipse shadow under every character. You may add short labels
-with <text> (font-family Inter, font-weight 800), e.g. a ticker "NVDA ▼17%".
+{BACKGROUND[cfg.get("style", "classic")]}
 Valid XML only. No <script>, no external images, no <svg> wrapper, no width/height on root.
 {("Fix these problems found in review: " + feedback) if feedback else ""}
 Reply with one ```svg block containing only the scene markup."""

@@ -8,6 +8,7 @@ one real story, one huge number, friendly cartoons, every line animated).
 ./run.sh --topic "Nvidia stock"       # your own topic
 ./run.sh --lang hi                    # Hindi narration and captions
 ./run.sh --seconds 480                # 8-minute video for a real channel
+./run.sh --style doodle               # minimalist dark-comedy stick-comic style
 ```
 
 You don't need API keys. The agent is Claude Code running headless (`claude -p`) with the

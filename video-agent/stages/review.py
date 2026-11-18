@@ -68,7 +68,7 @@ JSON shape:
     (out / "youtube.md").write_text("\n".join(md) + "\n")
 
     thumb_prompt = f"""Draw a YouTube thumbnail (1280x720, viewBox 0 0 1280 720) as SVG markup.
-Style: flat cartoon, dark background with a strong {('red' if '-' in pkg.get('thumbnail_text', '') else 'green')} glow, one big
+Style: {"minimalist doodle comic: flat light background, simple round-head characters, black outlines;" if cfg.get("style") == "doodle" else ""} flat cartoon, background with a strong {('red' if '-' in pkg.get('thumbnail_text', '') else 'green')} glow, one big
 character close-up on one side, one glowing prop, and the text "{pkg.get('thumbnail_text', '')}"
 HUGE (font-family Inter, font-weight 900, white or yellow with a thick black stroke, paint-order stroke).
 Max 3 elements, readable on a phone. You can use these symbols with <use href="#id">: {json.dumps(art['symbols'])}

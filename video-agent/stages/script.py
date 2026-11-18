@@ -4,6 +4,15 @@ import json
 from agent import ask_json
 from log import log
 
+TONE = {
+    "classic": "- Tone: serious, gripping news storytelling.",
+    "doodle": """- Tone: deadpan dark comedy, like a dry web-comic narrator. Every 2-3 lines land a short
+  ironic punchline or understatement, built ONLY from true, sourced facts (e.g. "Then Nvidia made a
+  record $115.8 billion. Without him. Awkward."). Jokes target the absurd numbers, markets and
+  situation; never mock a real person's looks, private life, family or the accused woman; no slurs.
+  Each scene's "action" describes one visual gag that matches the line.""",
+}
+
 CAMERAS = ["zoom_in", "zoom_out", "pan_left", "pan_right", "shake", "still"]
 
 
@@ -20,6 +29,7 @@ Story research (only use these facts; every line must be backed by one of them):
 Rules:
 - Line 1 is the hook and says the huge number.
 - Short punchy sentences a 12-year-old understands. Build curiosity; end with a strong last line.
+{TONE[cfg.get('style', 'classic')]}
 - Say "reportedly"/"alleged" exactly where the sources do. No claims beyond the facts.
 - Every line gets a scene. Real people appear as friendly cartoons (never ugly). Anyone
   accused=true appears only as a dark faceless silhouette.

@@ -89,6 +89,9 @@ window.setup = function (scene) {
   S = scene;
   const m = MOODS[scene.mood] || MOODS.red_alarm;
   $('bg').style.background = `radial-gradient(ellipse at 50% 42%, ${m[0]} 0%, ${m[1]} 75%)`;
+  const LIGHT = { red_alarm: '#fbe9e7', green_money: '#e8f6ec', blue_tech: '#e8f0fb', gold_luxury: '#fbf3df', dark_mystery: '#efeaf7' };
+  if (scene.theme === 'light') $('bg').style.background = LIGHT[scene.mood] || '#f6f3ea';
+  $('vig').style.display = scene.theme === 'light' ? 'none' : '';
   $('cam').innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1920 1080">${scene.defs}${scene.svg}</svg>`;
   const big = $('big');
   big.textContent = scene.big_text || '';

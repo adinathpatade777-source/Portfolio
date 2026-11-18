@@ -85,7 +85,8 @@ def run(cfg, script, voice, art, out, tag="final"):
         dur = tl[i]["dur"] + (1.0 if i == len(tl) - 1 else 0)  # hold the last frame a moment
         scenes.append({"defs": art["defs"], "svg": svg, "mood": sc.get("mood"),
                        "big_text": sc.get("big_text", ""), "camera": sc.get("camera"),
-                       "dur": dur, "words": tl[i]["words"], "flash": i > 0})
+                       "dur": dur, "words": tl[i]["words"], "flash": i > 0,
+                       "theme": "light" if cfg.get("style") == "doodle" else "dark"})
     work = out / "work"
     work.mkdir(exist_ok=True)
     silent = work / f"video_{tag}.mp4"
