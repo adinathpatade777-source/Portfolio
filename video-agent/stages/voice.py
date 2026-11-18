@@ -10,6 +10,7 @@ import json
 import os
 import re
 import subprocess
+import time
 
 import certifi
 
@@ -43,6 +44,28 @@ async def _tts_line(text, voice, path, rate):
             elif ch["type"] == "WordBoundary":
                 words.append({"w": ch["text"], "t": ch["offset"] / 1e7, "d": ch["duration"] / 1e7})
     return words
+
+
+def _speak(text, voice, mp3, rate, lang, cache):
+    """edge-tts with retries; cached per line; Google TTS as a free backup voice."""
+    if cache.exists() and mp3.exists() and mp3.stat().st_size > 0:
+        c = json.loads(cache.read_text())
+        if c.get("text") == text:
+            return c["words"]
+    for attempt in range(5):
+        try:
+            words = asyncio.run(_tts_line(text, voice, mp3, rate))
+            if mp3.stat().st_size > 0:
+                cache.write_text(json.dumps({"text": text, "words": words}))
+                return words
+        except Exception as e:
+            log(f"  voice retry {attempt + 1}: {type(e).__name__}")
+        time.sleep(3 * (attempt + 1))
+    log("  edge-tts unavailable for this line, using Google TTS backup voice")
+    from gtts import gTTS
+    gTTS(text, lang=lang).save(str(mp3))
+    cache.write_text(json.dumps({"text": text, "words": []}))
+    return []
 
 
 def _even_words(text, dur):
@@ -100,7 +123,7 @@ def run(cfg, script, out):
                         "-t", str(PAUSE), str(silence)], check=True)
         for i, ln in enumerate(lines):
             mp3 = vdir / f"line{i:02d}.mp3"
-            words = asyncio.run(_tts_line(ln["text"], voice, mp3, cfg.get("rate", "+8%")))
+            words = _speak(ln["text"], voice, mp3, cfg.get("rate", "+8%"), cfg["lang"], vdir / f"line{i:02d}.json")
             wav = vdir / f"line{i:02d}.wav"
             subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(mp3), "-ar", "44100", "-ac", "1", str(wav)], check=True)
             d = duration(wav)
