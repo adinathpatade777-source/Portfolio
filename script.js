@@ -1,39 +1,53 @@
 // script.js
 
-// Render projects dynamically
+// Replace the links with your real videos (YouTube, Drive, Instagram, etc.)
 const projects = [
-    { name: 'Project 1', description: 'Description for project 1' },
-    { name: 'Project 2', description: 'Description for project 2' },
-    { name: 'Project 3', description: 'Description for project 3' }
+    { name: 'Comet Edit', description: 'Beat-synced anime-style aesthetic edit: sideways 9:16 framing, hard cuts on every beat, push-ins and bloom.', link: 'edit/index.html' },
+    { name: 'Project Video 2', description: 'Description for project 2', link: 'link_to_video2' },
+    { name: 'Project Video 3', description: 'Description for project 3', link: 'link_to_video3' }
 ];
 
 const renderProjects = () => {
-    const projectContainer = document.getElementById('projects');
+    const container = document.getElementById('projects');
     projects.forEach(project => {
-        const projectElement = document.createElement('div');
-        projectElement.classList.add('project');
-        projectElement.innerHTML = `<h3>${project.name}</h3><p>${project.description}</p>`;
-        projectContainer.appendChild(projectElement);
+        const el = document.createElement('a');
+        el.className = 'project';
+        el.href = project.link;
+        el.innerHTML = `<h4>${project.name}</h4><p>${project.description}</p><span>Watch →</span>`;
+        container.appendChild(el);
     });
 };
 
 // Form validation
-const form = document.getElementById('myForm');
-form.addEventListener('submit', function (e) {
+document.getElementById('myForm').addEventListener('submit', e => {
     e.preventDefault();
-    const name = document.getElementById('name').value;
-    if (name === '') {
-        alert('Name must be filled out!');
-    } else {
-        alert('Form submitted successfully!');
-    }
+    const status = document.getElementById('form-status');
+    const name = document.getElementById('name').value.trim();
+    status.textContent = name ? `Thanks, ${name}! I'll get back to you soon.` : 'Name must be filled out!';
 });
 
-// Theme toggle functionality
-const toggleButton = document.getElementById('theme-toggle');
-toggleButton.addEventListener('click', () => {
-    document.body.classList.toggle('dark-theme');
+// Theme toggle
+document.getElementById('theme-toggle').addEventListener('click', () => {
+    document.body.classList.toggle('light-theme');
 });
 
-// Initial render
-window.onload = renderProjects();
+// Hero reel — the live Comet Edit
+const reel = new CometEdit(document.getElementById('reel'), { title: 'ADINATH PATADE', subtitle: 'VIDEO EDITOR' });
+const beat = new BeatTrack(reel.o.bpm);
+reel.onFrame = t => beat.sync(t);
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const playBtn = document.getElementById('reel-play');
+const togglePlay = () => {
+    if (reel.playing) { reel.pause(); beat.stop(); } else { reel.play(); }
+    playBtn.textContent = reel.playing ? '❚❚' : '▶';
+};
+playBtn.addEventListener('click', togglePlay);
+document.getElementById('reel').addEventListener('click', togglePlay);
+document.getElementById('reel-sound').addEventListener('click', e => {
+    beat.enabled = !beat.enabled;
+    if (!beat.enabled) beat.stop();
+    e.target.textContent = beat.enabled ? 'Sound on' : 'Sound off';
+});
+if (reduceMotion) { reel.renderFrame(reel.duration - 0.1); playBtn.textContent = '▶'; } else { reel.play(); }
+
+renderProjects();

@@ -1,27 +1,63 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Adinath Patade - Video Editor Portfolio</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <h1>Adinath Patade</h1>
-        <h2>Video Editor</h2>
+    <div class="sky" aria-hidden="true"></div>
+
+    <nav>
+        <a href="#work">Work</a>
+        <a href="#contact">Contact</a>
+        <button id="theme-toggle" aria-label="Toggle theme">◐</button>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-text">
+            <p class="eyebrow">Shoot · Edit · Post-production</p>
+            <h1>Adinath Patade</h1>
+            <h2>Video Editor</h2>
+            <p class="lede">I turn concepts into visual stories — beat-synced cuts, cinematic colour and edits that make people stop scrolling.</p>
+            <div class="cta">
+                <a class="btn" href="#work">See my work</a>
+                <a class="btn ghost" href="comet-edit.mp4" download>Download reel</a>
+            </div>
+        </div>
+        <figure class="phone">
+            <canvas id="reel" width="720" height="1280" aria-label="Animated edit reel"></canvas>
+            <figcaption>
+                <button id="reel-play">❚❚</button>
+                <button id="reel-sound">Sound off</button>
+                <span>Live, code-generated edit — no footage</span>
+            </figcaption>
+        </figure>
     </header>
-    <section>
+
+    <section id="work">
         <h3>Project Videos</h3>
-        <ul>
-            <li><a href="link_to_video1">Project Video 1</a></li>
-            <li><a href="link_to_video2">Project Video 2</a></li>
-            <li><a href="link_to_video3">Project Video 3</a></li>
-        </ul>
+        <div id="projects" class="grid"></div>
     </section>
-    <section>
+
+    <section id="contact">
         <h3>Contact Information</h3>
+        <form id="myForm">
+            <input id="name" placeholder="Your name">
+            <input id="email" type="email" placeholder="Your email">
+            <textarea id="message" rows="4" placeholder="Tell me about your project"></textarea>
+            <button class="btn" type="submit">Send</button>
+            <p id="form-status" role="status"></p>
+        </form>
         <p>Email: adinath@example.com</p>
         <p>Phone: 123-456-7890</p>
     </section>
+
+    <footer>© Adinath Patade</footer>
+
+    <script src="edit/comet-edit.js"></script>
+    <script src="edit/beat.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comet Edit</title>
+  <style>
+    :root { --bg: #07081a; --fg: #ece8ff; --accent: #a48bff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at top, #1d1a4a, var(--bg) 60%); color: var(--fg);
+      font-family: "Segoe UI", system-ui, sans-serif; display: grid; place-items: center; gap: 16px; padding: 24px 16px; }
+    canvas { height: min(80vh, 900px); max-width: 100%; aspect-ratio: 9 / 16; border-radius: 22px;
+      box-shadow: 0 30px 80px rgba(120, 90, 255, .35); background: #000; cursor: pointer; }
+    .bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    button { background: rgba(255,255,255,.08); color: var(--fg); border: 1px solid rgba(255,255,255,.18);
+      padding: 8px 14px; border-radius: 999px; font: inherit; cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+  </style>
+</head>
+<body>
+  <canvas id="c" width="720" height="1280"></canvas>
+  <div class="bar">
+    <button id="play">Pause</button>
+    <button id="rot">Sideways: on</button>
+    <button id="snd">Sound: off</button>
+  </div>
+  <script src="comet-edit.js"></script>
+  <script src="beat.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const edit = new CometEdit(document.getElementById('c'), {
+      title: params.get('title') || 'ADINATH PATADE',
+      subtitle: params.get('sub') || 'VIDEO EDITOR',
+    });
+    window.edit = edit;
+    if (!params.has('still')) edit.play(); else edit.renderFrame(+params.get('still'));
+    const beat = new BeatTrack(edit.o.bpm);
+    edit.onFrame = t => beat.sync(t);
+    const playBtn = document.getElementById('play');
+    const toggle = () => { edit.playing ? (edit.pause(), beat.stop()) : edit.play(); playBtn.textContent = edit.playing ? 'Pause' : 'Play'; };
+    playBtn.onclick = toggle; document.getElementById('c').onclick = toggle;
+    document.getElementById('rot').onclick = e => { edit.o.sideways = !edit.o.sideways; e.target.textContent = 'Sideways: ' + (edit.o.sideways ? 'on' : 'off'); };
+    document.getElementById('snd').onclick = e => { beat.enabled = !beat.enabled; if (!beat.enabled) beat.stop(); e.target.textContent = 'Sound: ' + (beat.enabled ? 'on' : 'off'); };
+  </script>
+</body>
+</html>
