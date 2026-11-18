@@ -30,7 +30,7 @@ const { chromium } = require('playwright');
       await page.evaluate(x => window.seek(x), t);
       const buf = await page.screenshot({ type: 'jpeg', quality: 92 });
       if (!ff.stdin.write(buf)) await new Promise(r => ff.stdin.once('drain', r));
-      if (job.snap_dir && frame === mid) fs.writeFileSync(path.join(job.snap_dir, `scene${String(i).padStart(2, '0')}.jpg`), buf);
+      if (job.snap_dir && frame === mid) fs.writeFileSync(path.join(job.snap_dir, `scene${String(i + 1).padStart(2, '0')}.jpg`), buf);
     }
     t0 += sc.dur;
     process.stdout.write(`  rendered scene ${i + 1}/${job.scenes.length}\n`);

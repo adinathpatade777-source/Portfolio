@@ -2,6 +2,7 @@
 the script against the sources, and sends scenes back for redraw. Then it writes the
 YouTube package (titles, description with sources, tags) and draws the thumbnail."""
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -18,7 +19,7 @@ def review(cfg, story, script, out, tag):
     prompt = f"""You are a strict reviewer for a YouTube channel. Check a finished cartoon money-news
 video before it is published.
 
-1. Use the Read tool to look at each frame (one per scene, in order):
+1. Use the Read tool to look at each frame (file sceneNN.jpg is scene NN, counting from 1):
 {chr(10).join(str(p) for p in snaps)}
 2. Script (scene number = line number):
 {lines}
@@ -35,7 +36,8 @@ Be specific and practical. Only flag a scene if a redraw would clearly improve i
 
 JSON shape:
 {{"score": 1-10, "verdict": "publish" | "fix",
-  "fact_issues": [{{"line": 3, "problem": "...", "fix": "corrected sentence"}}],
+  "fact_issues": [{{"line": 3, "problem": "...", "new_text": "the full corrected narration sentence exactly as it should be spoken, or \\"\\" if the narration itself is fine"}}],
+Put problems that are only in the picture (wrong on-screen number, label, drawing) in scene_issues, not fact_issues.
   "scene_issues": [{{"scene": 2, "problem": "...", "fix": "concrete drawing instruction"}}],
   "notes": "short overall comment"}}"""
     rep = ask_json(prompt, tools=["Read"], timeout=900, cwd=str(out))

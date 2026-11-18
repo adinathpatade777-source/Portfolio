@@ -37,13 +37,14 @@ def main():
     ap.add_argument("--voice-file", default="", help="your own voiceover recording (mp3/wav)")
     ap.add_argument("--resume", default="", help="output folder of an earlier run to continue")
     ap.add_argument("--no-review", action="store_true")
+    ap.add_argument("--review-rounds", type=int, default=2)
     ap.add_argument("--workers", type=int, default=4)
     a = ap.parse_args()
 
     cfg = {"topic": a.topic, "lang": a.lang, "seconds": a.seconds, "voice": a.voice,
            "voice_file": a.voice_file, "workers": a.workers, "today": dt.date.today().isoformat()}
     if a.resume:
-        out = Path(a.resume)
+        out = Path(a.resume).resolve()
     else:
         slug = re.sub(r"[^a-z0-9]+", "-", (a.topic or "auto").lower()).strip("-")[:30]
         out = HERE / "output" / f"{dt.datetime.now():%Y%m%d-%H%M}-{slug}"
@@ -71,37 +72,52 @@ def main():
     log("5/6 video (draft)")
     video = render.run(cfg, script, vo, art, out, tag="draft")
 
-    if not a.no_review:
-        log("6/6 review")
-        rep = review.review(cfg, story, script, out, "draft")
-        changed = False
+    tag = "draft"
+    for rnd in range(1, 0 if a.no_review else a.review_rounds + 1):
+        log(f"6/6 review round {rnd}")
+        rep = review.review(cfg, story, script, out, tag)
+        if rep.get("verdict") == "publish":
+            log("  reviewer approved the video")
+            break
+        n = len(script["lines"])
+        changed_lines = set()
         for f in rep.get("fact_issues", []):
-            i = int(f.get("line", 0)) - 1
-            if 0 <= i < len(script["lines"]) and f.get("fix"):
-                script["lines"][i]["text"] = f["fix"]
-                changed = True
-        if changed and not cfg["voice_file"]:
+            i = int(f.get("line", 0) or 0) - 1
+            new = re.sub(r"\s*\([^)]*\)\s*$", "", (f.get("new_text") or "").strip())
+            if 0 <= i < n and new and new != script["lines"][i]["text"] and len(new.split()) >= 3:
+                script["lines"][i]["text"] = new
+                changed_lines.add(i)
+        if changed_lines and not cfg["voice_file"]:
             (out / "script.json").write_text(json.dumps(script, ensure_ascii=False, indent=2))
-            log("  re-recording voiceover with corrected lines")
+            log(f"  re-voicing corrected lines {sorted(i + 1 for i in changed_lines)}")
             vo = voice_stage.run(cfg, script, out)
-        bad = [s for s in rep.get("scene_issues", []) if 1 <= int(s.get("scene", 0)) <= len(script["lines"])]
-        if bad:
-            log(f"  redrawing {len(bad)} scenes from review notes")
+        notes = {}
+        for s in rep.get("scene_issues", []):
+            i = int(s.get("scene", 0) or 0) - 1
+            if 0 <= i < n:
+                notes.setdefault(i, []).append(f"{s.get('problem')} FIX: {s.get('fix')}")
+        for i in changed_lines:
+            notes.setdefault(i, []).append("The narration line changed; make the picture match it.")
+        if not notes and not changed_lines:
+            break
+        if notes:
+            log(f"  redrawing scenes {sorted(i + 1 for i in notes)}")
             from concurrent.futures import ThreadPoolExecutor
-            def redo(s):
-                i = int(s["scene"]) - 1
+
+            def redo(item):
+                i, fb = item
                 art["scenes"][i] = assets.scene(cfg, i, script["lines"][i], art["symbols"], art["defs"],
-                                                feedback=f"{s.get('problem')} -> {s.get('fix')}")
+                                                feedback=" | ".join(fb))
                 (out / "assets" / f"scene{i:02d}.svg").write_text(art["scenes"][i])
             with ThreadPoolExecutor(cfg["workers"]) as ex:
-                list(ex.map(redo, bad))
-        if changed or bad:
-            log("  rendering final video")
-            video = render.run(cfg, script, vo, art, out, tag="final")
-            review.review(cfg, story, script, out, "final")
-        else:
-            shutil.copy(video, out / "video_final.mp4")
-            video = out / "video_final.mp4"
+                list(ex.map(redo, notes.items()))
+        tag = f"round{rnd}"
+        log("  rendering fixed video")
+        video = render.run(cfg, script, vo, art, out, tag=tag)
+    final = out / "video_final.mp4"
+    if video != final:
+        shutil.copy(video, final)
+    video = final
 
     log("package: titles, description, thumbnail")
     review.package(cfg, story, script, art, out)
