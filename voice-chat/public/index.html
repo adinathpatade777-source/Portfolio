@@ -20,8 +20,18 @@
         </label>
         <label class="toggle"><input type="checkbox" id="handsfree" /> Hands-free</label>
         <button id="clear" class="ghost" title="Start a new conversation">New chat</button>
+        <button id="keyBtn" class="ghost" hidden>API key</button>
       </div>
     </header>
+
+    <form id="keyForm" class="key-form" hidden>
+      <p><strong>Enter your OpenAI API key</strong> to start. It is saved only in this browser and sent only to OpenAI.
+        Get one at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys</a>.</p>
+      <div class="row">
+        <input id="keyInput" type="password" placeholder="sk-..." autocomplete="off" />
+        <button type="submit">Save</button>
+      </div>
+    </form>
 
     <section id="log" class="log" aria-live="polite">
       <p class="empty">Tap the microphone and start talking.</p>

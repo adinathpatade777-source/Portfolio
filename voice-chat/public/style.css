@@ -38,3 +38,6 @@ button.ghost:hover { color: var(--text); }
 @keyframes pulse { 50% { transform: scale(1.15); } }
 .text-form { display: flex; gap: 8px; width: 100%; }
 .text-form input { flex: 1; }
+.key-form { background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 14px 16px; font-size: .95rem; }
+.key-form p { margin: 0 0 10px; } .key-form a { color: var(--accent); }
+.key-form .row { display: flex; gap: 8px; } .key-form input { flex: 1; }

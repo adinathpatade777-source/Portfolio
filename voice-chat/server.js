@@ -22,8 +22,7 @@ const PUBLIC = path.join(__dirname, "public");
 const MAX_BODY = 25 * 1024 * 1024;
 
 if (!KEY) {
-  console.error("Missing OPENAI_API_KEY. Copy .env.example to .env and add your key.");
-  process.exit(1);
+  console.warn("No OPENAI_API_KEY in .env — the page will ask for your key in the browser instead.");
 }
 
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml" };
@@ -31,6 +30,7 @@ const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/cs
 http
   .createServer(async (req, res) => {
     try {
+      if (req.url === "/api/health") return send(res, 200, { ok: Boolean(KEY) });
       if (req.method === "POST" && req.url === "/api/transcribe") return await transcribe(req, res);
       if (req.method === "POST" && req.url === "/api/chat") return await chat(req, res);
       if (req.method === "POST" && req.url === "/api/speak") return await speak(req, res);
@@ -41,7 +41,11 @@ http
       send(res, err.status || 500, { error: err.message || "Server error" });
     }
   })
-  .listen(PORT, () => console.log(`Voice chat running at http://localhost:${PORT}`));
+  .listen(PORT, () => console.log(`Voice chat running at http://localhost:${PORT}`))
+  .on("error", (err) => {
+    console.error(err.code === "EADDRINUSE" ? `Port ${PORT} is busy. Try: PORT=3001 npm start` : err.message);
+    process.exit(1);
+  });
 
 async function transcribe(req, res) {
   const audio = await readBody(req);

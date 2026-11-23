@@ -7,16 +7,106 @@ const SILENCE_MS = 1300;      // stop after this much quiet (hands-free)
 const SPEECH_LEVEL = 0.02;    // RMS threshold that counts as "talking"
 const MAX_RECORD_MS = 60000;
 
+const OPENAI = "https://api.openai.com/v1";
+const MODELS = { chat: "gpt-4o-mini", stt: "gpt-4o-mini-transcribe", tts: "gpt-4o-mini-tts" };
+const SYSTEM_PROMPT = "You are a friendly voice assistant. Keep answers short and conversational (1-3 sentences) because they will be spoken aloud. Avoid markdown, lists and emojis.";
+
 let messages = [];
+let mode = null;              // "server" (Node proxy) or "direct" (browser -> OpenAI with your key)
 let state = "idle";           // idle | listening | thinking | speaking
 let stream, recorder, chunks = [], audioCtx, analyser, rafId, currentAudio;
 
-voiceSel.value = localStorage.getItem("voice") || "alloy";
-voiceSel.onchange = () => localStorage.setItem("voice", voiceSel.value);
-handsfree.checked = localStorage.getItem("handsfree") === "1";
-handsfree.onchange = () => localStorage.setItem("handsfree", handsfree.checked ? "1" : "0");
+
+const store = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+};
+const getKey = () => store.get("openai_key");
+
+$("keyForm").onsubmit = (e) => {
+  e.preventDefault();
+  const k = $("keyInput").value.trim();
+  if (!k.startsWith("sk-")) return showError("That doesn't look like an OpenAI key (it should start with sk-).");
+  store.set("openai_key", k);
+  $("keyInput").value = "";
+  $("keyForm").hidden = true;
+  setState("idle", "Key saved. Tap the mic and start talking.");
+};
+$("keyBtn").onclick = () => { $("keyForm").hidden = !$("keyForm").hidden; };
+
+voiceSel.value = store.get("voice") || "alloy";
+voiceSel.onchange = () => store.set("voice", voiceSel.value);
+handsfree.checked = store.get("handsfree") === "1";
+handsfree.onchange = () => store.set("handsfree", handsfree.checked ? "1" : "0");
+
+// Use the Node server if it's running; otherwise talk to OpenAI straight from the browser.
+(async function detectMode() {
+  try {
+    if (location.protocol.startsWith("http")) {
+      const r = await fetch("api/health", { cache: "no-store" });
+      if (r.ok && (await r.json()).ok) { mode = "server"; return; }
+    }
+  } catch {}
+  mode = "direct";
+  $("keyBtn").hidden = false;
+  if (!getKey()) { $("keyForm").hidden = false; setState("idle", "Add your OpenAI API key to begin"); }
+})();
+
+function needKey() {
+  if (mode === "direct" && !getKey()) { $("keyForm").hidden = false; $("keyInput").focus(); return true; }
+  return false;
+}
+
+async function openai(path, init) {
+  const r = await fetch(OPENAI + path, { ...init, headers: { Authorization: `Bearer ${getKey()}`, ...(init.headers || {}) } });
+  if (!r.ok) {
+    let msg = await r.text();
+    try { msg = JSON.parse(msg).error.message; } catch {}
+    if (r.status === 401) { store.set("openai_key", null); $("keyForm").hidden = false; }
+    throw new Error(`OpenAI error (${r.status}): ${msg}`);
+  }
+  return r;
+}
+
+async function apiTranscribe(blob) {
+  if (mode === "server") {
+    const r = await fetch("api/transcribe", { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
+    const d = await r.json(); if (!r.ok) throw new Error(d.error); return d.text;
+  }
+  const ext = blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm";
+  const form = new FormData();
+  form.append("file", blob, `speech.${ext}`);
+  form.append("model", MODELS.stt);
+  return ((await (await openai("/audio/transcriptions", { method: "POST", body: form })).json()).text || "").trim();
+}
+
+async function apiChat(history) {
+  if (mode === "server") {
+    const r = await fetch("api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: history }) });
+    const d = await r.json(); if (!r.ok) throw new Error(d.error); return d.reply;
+  }
+  const r = await openai("/chat/completions", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: MODELS.chat, messages: [{ role: "system", content: SYSTEM_PROMPT }, ...history.slice(-20)] }),
+  });
+  return (await r.json()).choices?.[0]?.message?.content?.trim() || "";
+}
+
+async function apiSpeak(text, voice) {
+  if (mode === "server") {
+    const r = await fetch("api/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, voice }) });
+    if (!r.ok) throw new Error((await r.json()).error); return r.blob();
+  }
+  const r = await openai("/audio/speech", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: MODELS.tts, voice, input: text.slice(0, 4000), response_format: "mp3" }),
+  });
+  return r.blob();
+}
 
 micBtn.onclick = () => {
+  if (!mode) return;
+  if (needKey()) return;
   if (state === "idle") startListening();
   else if (state === "listening") stopListening();
   else if (state === "speaking") { stopSpeaking(); startListening(); } // interrupt and talk
@@ -26,7 +116,7 @@ $("clear").onclick = () => { stopSpeaking(); messages = []; log.innerHTML = '<p 
 $("textForm").onsubmit = (e) => {
   e.preventDefault();
   const text = $("textInput").value.trim();
-  if (!text || state === "thinking") return;
+  if (!text || state === "thinking" || !mode || needKey()) return;
   $("textInput").value = "";
   stopSpeaking();
   handleUserText(text);
@@ -51,10 +141,13 @@ function addMsg(role, text) {
 }
 
 async function startListening() {
+  if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+    return showError("This browser can't record audio here. Use Chrome, Edge, Firefox or Safari over https:// or http://localhost — or type below.");
+  }
   try {
     stream ??= await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-  } catch {
-    return showError("Microphone access was blocked. Allow it in your browser settings.");
+  } catch (err) {
+    return showError(err.name === "NotFoundError" ? "No microphone found." : "Microphone access was blocked. Allow it in your browser's site settings, then try again.");
   }
   const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find((t) => MediaRecorder.isTypeSupported(t));
   recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
@@ -100,11 +193,9 @@ async function onRecordingDone() {
   if (blob.size < 2000) { setState("idle", "Didn't catch that — try again."); return; }
   setState("thinking", "Transcribing…");
   try {
-    const r = await fetch("/api/transcribe", { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error);
-    if (!data.text) { setState("idle", "Didn't catch that — try again."); return maybeRelisten(); }
-    await handleUserText(data.text);
+    const text = await apiTranscribe(blob);
+    if (!text) { setState("idle", "Didn't catch that — try again."); return maybeRelisten(); }
+    await handleUserText(text);
   } catch (err) {
     showError(err.message);
   }
@@ -116,24 +207,21 @@ async function handleUserText(text) {
   setState("thinking");
   const pending = addMsg("assistant pending", "…");
   try {
-    const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error);
+    const reply = await apiChat(messages);
     pending.className = "msg assistant";
-    pending.textContent = data.reply;
-    messages.push({ role: "assistant", content: data.reply });
-    await speak(data.reply);
+    pending.textContent = reply;
+    messages.push({ role: "assistant", content: reply });
   } catch (err) {
     pending.remove();
     messages.pop();
-    showError(err.message);
+    return showError(err.message);
   }
+  try { await speak(messages[messages.length - 1].content); }
+  catch (err) { showError("Couldn't play the reply: " + err.message); }
 }
 
 async function speak(text) {
-  const r = await fetch("/api/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, voice: voiceSel.value }) });
-  if (!r.ok) throw new Error((await r.json()).error);
-  const url = URL.createObjectURL(await r.blob());
+  const url = URL.createObjectURL(await apiSpeak(text, voiceSel.value));
   currentAudio = new Audio(url);
   setState("speaking");
   currentAudio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; setState("idle"); maybeRelisten(); };

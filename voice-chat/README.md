@@ -6,7 +6,15 @@ Talk to GPT out loud in your browser. You speak, the app transcribes it, GPT rep
 
 ## Run it
 
-You need Node.js 18 or newer and an [OpenAI API key](https://platform.openai.com/api-keys).
+You need an [OpenAI API key](https://platform.openai.com/api-keys) (with billing set up on your OpenAI account).
+
+### Option A — no install (easiest)
+
+Open `public/index.html` in Chrome, Edge, Firefox or Safari, or open the GitHub Pages copy of it. Paste your API key when asked, then tap the mic. The key is saved only in your browser and is sent only to OpenAI.
+
+### Option B — with the Node server (keeps your key off the browser)
+
+You need Node.js 18 or newer.
 
 ```bash
 cd voice-chat
@@ -14,7 +22,15 @@ cp .env.example .env      # then paste your key into .env
 npm start
 ```
 
-Open http://localhost:3000 and allow microphone access.
+Open http://localhost:3000 and allow microphone access. If `.env` has no key, the page asks for one, as in option A.
+
+## Troubleshooting
+
+- **"Microphone access was blocked"**: click the lock icon in the address bar, allow the microphone, and reload.
+- **"OpenAI error (401)"**: the key is wrong. The page asks you for it again.
+- **"OpenAI error (429)"**: your OpenAI account has no credit or hit a limit. Check billing at platform.openai.com.
+- **"Port 3000 is busy"**: run `PORT=3001 npm start`.
+- **No sound**: tap the mic once. Some browsers block audio until you've clicked something on the page.
 
 ## Using it
 
@@ -35,4 +51,4 @@ Open http://localhost:3000 and allow microphone access.
 | `TTS_MODEL` | `gpt-4o-mini-tts` |
 | `SYSTEM_PROMPT` | short, conversational assistant |
 
-Your API key stays on the server and is never sent to the browser. Microphone access only works on `localhost` or over HTTPS.
+With the Node server, your API key stays on the server and never reaches the browser. Microphone access only works on `localhost`, over HTTPS, or when the file is opened directly from your computer.
