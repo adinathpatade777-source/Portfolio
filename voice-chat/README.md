@@ -1,0 +1,38 @@
+# Voice Chat with GPT
+
+Talk to GPT out loud in your browser. You speak, the app transcribes it, GPT replies, and the reply is read back to you in a natural voice.
+
+**How it works:** microphone → `gpt-4o-mini-transcribe` (speech to text) → `gpt-4o-mini` (reply) → `gpt-4o-mini-tts` (text to speech) → speakers.
+
+## Run it
+
+You need Node.js 18 or newer and an [OpenAI API key](https://platform.openai.com/api-keys).
+
+```bash
+cd voice-chat
+cp .env.example .env      # then paste your key into .env
+npm start
+```
+
+Open http://localhost:3000 and allow microphone access.
+
+## Using it
+
+- **Tap the mic** to start talking, then tap it again to send.
+- **Hands-free mode:** the app sends on its own when you stop talking, then starts listening again after GPT replies, so you can keep a conversation going.
+- **Interrupt:** tap the mic while GPT is speaking to cut it off and talk.
+- **Voice:** pick any of the OpenAI voices from the dropdown.
+- **Typing:** use the text box if you'd rather type.
+
+## Configuration (`.env`)
+
+| Variable | Default |
+|---|---|
+| `OPENAI_API_KEY` | *(required)* |
+| `PORT` | `3000` |
+| `CHAT_MODEL` | `gpt-4o-mini` |
+| `STT_MODEL` | `gpt-4o-mini-transcribe` |
+| `TTS_MODEL` | `gpt-4o-mini-tts` |
+| `SYSTEM_PROMPT` | short, conversational assistant |
+
+Your API key stays on the server and is never sent to the browser. Microphone access only works on `localhost` or over HTTPS.

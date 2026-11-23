@@ -1,0 +1,9 @@
+{
+  "name": "voice-chat-gpt",
+  "version": "1.0.0",
+  "description": "Talk to GPT with your voice",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
