@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Frame — AI Video Studio</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root {
+    --bg: #0d0d10; --panel: #17171c; --panel2: #202027; --line: #2c2c35;
+    --text: #f3f3f5; --muted: #9a9aa6; --accent: #ff6a3d; --accent2: #d6336c;
+    --ok: #3ddc97; --err: #ff5c6c; --r: 16px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  body { padding: env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 24px); }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+  header { display: flex; align-items: center; gap: 10px; padding: 18px 0 14px; }
+  header img { width: 34px; height: 34px; }
+  header h1 { font-size: 20px; margin: 0; letter-spacing: -.02em; }
+  header .tag { margin-left: auto; font-size: 12px; color: var(--ok); border: 1px solid #2a5c47;
+    padding: 3px 9px; border-radius: 99px; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--panel); border-radius: 12px; padding: 4px; gap: 4px; }
+  .tabs button { border: 0; background: none; color: var(--muted); padding: 10px; border-radius: 9px; font: inherit; font-weight: 600; }
+  .tabs button.on { background: var(--panel2); color: var(--text); }
+  .card { background: var(--panel); border-radius: var(--r); padding: 14px; margin-top: 12px; }
+  label.h { display: block; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  textarea, input[type=text], input[type=password], input[type=number] {
+    width: 100%; background: var(--panel2); border: 1px solid var(--line); color: var(--text);
+    border-radius: 12px; padding: 12px; font: inherit; font-size: 16px; resize: vertical; }
+  textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 99px;
+    padding: 7px 12px; font: inherit; font-size: 13px; }
+  .chip.on { border-color: var(--accent); background: #3a1d14; color: #ffd2c2; }
+  .row { display: flex; gap: 10px; align-items: center; }
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .seg button { border: 1px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 12px;
+    padding: 10px 4px; font: inherit; font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .seg button.on { border-color: var(--accent); }
+  .seg i { display: block; border: 2px solid currentColor; border-radius: 3px; opacity: .8; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .val { min-width: 44px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .drop { border: 1.5px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; color: var(--muted); position: relative; }
+  .drop img { max-width: 100%; max-height: 220px; border-radius: 8px; display: block; margin: 0 auto; }
+  .drop input { position: absolute; inset: 0; opacity: 0; }
+  .switch { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+  .switch input { width: 22px; height: 22px; accent-color: var(--accent); }
+  details summary { cursor: pointer; color: var(--muted); font-weight: 600; padding: 4px 0; }
+  details .grid { display: grid; gap: 12px; margin-top: 12px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .go { width: 100%; margin-top: 14px; border: 0; border-radius: 14px; padding: 16px; font: inherit; font-weight: 700; font-size: 17px;
+    color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  .go:disabled { opacity: .55; }
+  .status { margin-top: 12px; display: none; }
+  .status.show { display: block; }
+  .bar { height: 6px; background: var(--panel2); border-radius: 99px; overflow: hidden; margin-top: 10px; }
+  .bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .5s; }
+  .bar.indet span { width: 35% !important; animation: slide 1.3s infinite ease-in-out; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+  .err { color: var(--err); }
+  .result video { width: 100%; border-radius: 12px; background: #000; display: block; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .btn { border: 1px solid var(--line); background: var(--panel2); color: var(--text); border-radius: 12px; padding: 11px 6px; font: inherit; font-weight: 600; font-size: 14px; }
+  .gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .gallery .item { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #000; border: 0; padding: 0; }
+  .gallery video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+  .empty { color: var(--muted); font-size: 13px; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 22px; }
+  footer a { color: var(--muted); }
+  .sheet { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 5; }
+  .sheet.show { display: flex; }
+  .sheet .in { width: 100%; max-width: 560px; background: var(--panel); border-radius: var(--r); padding: 12px; }
+  .sheet p { margin: 10px 2px 0; font-size: 13px; color: var(--muted); max-height: 90px; overflow: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="icon.svg" alt="">
+    <h1>Frame</h1>
+    <span class="tag">Free · No signup</span>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="on" data-mode="text">Text → Video</button>
+    <button data-mode="image">Image → Video</button>
+  </div>
+
+  <div class="card" id="imageCard" hidden>
+    <label class="h">Start frame</label>
+    <div class="drop" id="drop">
+      <span id="dropText">Tap to pick a photo</span>
+      <img id="preview" alt="" hidden>
+      <input type="file" id="file" accept="image/*">
+    </div>
+  </div>
+
+  <div class="card">
+    <label class="h" for="prompt">Describe your shot</label>
+    <textarea id="prompt" rows="4" placeholder="A golden retriever running through a sunlit wheat field, slow motion, shallow depth of field"></textarea>
+    <div class="row" style="margin-top:10px; justify-content:space-between">
+      <button class="chip" id="surprise">🎲 Surprise me</button>
+      <span class="hint" id="count" style="margin:0">0 chars</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <label class="h">Look</label>
+    <div class="chips" id="styles"></div>
+  </div>
+
+  <div class="card">
+    <label class="h">Format</label>
+    <div class="seg" id="aspect">
+      <button data-w="512" data-h="896" class="on"><i style="width:12px;height:20px"></i>9:16 Story</button>
+      <button data-w="640" data-h="640"><i style="width:16px;height:16px"></i>1:1 Square</button>
+      <button data-w="896" data-h="512"><i style="width:22px;height:13px"></i>16:9 Wide</button>
+    </div>
+    <label class="h" style="margin-top:14px">Length</label>
+    <div class="row"><input type="range" id="dur" min="1" max="8" step="0.5" value="4"><span class="val" id="durVal">4s</span></div>
+    <div class="switch"><span>Photoreal boost <span class="hint">(adds realism cues to your prompt)</span></span><input type="checkbox" id="realism" checked></div>
+    <div class="switch"><span>HD texture pass <span class="hint">(sharper, a bit slower)</span></span><input type="checkbox" id="hd" checked></div>
+
+    <details>
+      <summary>Advanced</summary>
+      <div class="grid">
+        <div><label class="h" for="neg">Avoid</label>
+          <input type="text" id="neg" value="worst quality, inconsistent motion, blurry, jittery, distorted, cartoon, cgi, watermark, text"></div>
+        <div><label class="h">Prompt strength</label>
+          <div class="row"><input type="range" id="cfg" min="1" max="10" step="0.5" value="1"><span class="val" id="cfgVal">1</span></div></div>
+        <div><label class="h" for="seed">Seed</label>
+          <div class="row"><input type="number" id="seed" value="42"><label class="row" style="white-space:nowrap;gap:6px"><input type="checkbox" id="rand" checked> random</label></div></div>
+        <div><label class="h" for="token">Hugging Face token (optional)</label>
+          <input type="password" id="token" placeholder="hf_…" autocomplete="off">
+          <div class="hint">Free and optional. Anonymous use gets a small daily GPU quota; a free token from huggingface.co/settings/tokens raises it. Stored only on this device.</div></div>
+      </div>
+    </details>
+  </div>
+
+  <button class="go" id="go">Generate video</button>
+
+  <div class="card status" id="status">
+    <div id="statusText">Connecting…</div>
+    <div class="bar indet" id="bar"><span></span></div>
+    <div class="hint" id="elapsed"></div>
+  </div>
+
+  <div class="card result" id="result" hidden>
+    <video id="out" controls playsinline loop autoplay muted></video>
+    <div class="actions">
+      <button class="btn" id="save">⬇ Save</button>
+      <button class="btn" id="share">↗ Share</button>
+      <button class="btn" id="again">↻ Again</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <label class="h">Your videos</label>
+    <div class="gallery" id="gallery"></div>
+    <div class="empty" id="emptyG">Videos you make are kept on this device.</div>
+  </div>
+
+  <footer>Powered by the open-source <a href="https://huggingface.co/Lightricks/LTX-Video" target="_blank" rel="noopener">LTX-Video</a> model on free Hugging Face GPUs.<br>Add to Home Screen to install as an app.</footer>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="in">
+    <video id="sheetVid" controls playsinline loop autoplay></video>
+    <p id="sheetPrompt"></p>
+    <div class="actions">
+      <button class="btn" id="sheetSave">⬇ Save</button>
+      <button class="btn" id="sheetDel">🗑 Delete</button>
+      <button class="btn" id="sheetClose">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
